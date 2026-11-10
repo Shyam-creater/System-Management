@@ -1,0 +1,21 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C++ Build objects
+obj/
+*.o
+*.dSYM/
+
+# Local databases and runtime state
+data/*.db-shm
+data/*.db-wal
+
+# Log files
+logs/*.log
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db

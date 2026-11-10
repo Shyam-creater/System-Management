@@ -1,0 +1,26 @@
+{
+  "node_id": "sjt418scope069 (10.30.158.79)",
+  "hostname": "sjt418scope069",
+  "report_date": "2026-10-31",
+  "is_simulated": false,
+  "samples_collected": 48,
+  "uptime_percent": 100.0,
+  "alerts_count": 0,
+  "cpu": {
+    "avg": 12.5,
+    "max": 46.1
+  },
+  "ram": {
+    "avg": 17.4,
+    "max": 18.5
+  },
+  "disk": {
+    "avg": 56.0,
+    "max": 56.0
+  },
+  "gpu": {
+    "avg": 17.3,
+    "max": 61.3
+  },
+  "generated_at": 1793964685.617111
+}
