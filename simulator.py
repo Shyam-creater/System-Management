@@ -16,6 +16,72 @@ import urllib.error
 
 DEFAULT_AUTH_KEY = "ProcessShield-OS-2026"
 
+STUDENT_NAMES = [
+    "alex.kumar", "priya.sharma", "david.smith", "sneha.patel",
+    "rohit.verma", "emily.chen", "arjun.nair", "ananya.singh"
+]
+
+# Track simulated user sessions per node
+node_sessions = {}  # node_id -> {"user": str, "login_tick": int}
+
+def handle_simulated_sessions(server_base_url, node_id, tick, key):
+    """Simulates student login and logout events periodically."""
+    sess = node_sessions.get(node_id)
+    session_event_url = f"{server_base_url}/api/sessions/event"
+    ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+    if not sess:
+        # 35% chance to log in if not logged in
+        if random.random() < 0.35:
+            user = random.choice(STUDENT_NAMES)
+            node_sessions[node_id] = {"user": user, "login_tick": tick}
+            payload = {
+                "nodeId": node_id,
+                "event": "login",
+                "username": user,
+                "ts": ts
+            }
+            try:
+                data = json.dumps(payload).encode("utf-8")
+                req = urllib.request.Request(
+                    session_event_url,
+                    data=data,
+                    headers={
+                        "Content-Type": "application/json",
+                        "X-ProcessShield-Key": key
+                    }
+                )
+                urllib.request.urlopen(req, timeout=3)
+                print(f"[Simulator Session] 🟢 Student '{user}' LOGGED IN on '{node_id}'")
+            except Exception:
+                pass
+    else:
+        # If logged in for at least 6 ticks (30s), 25% chance to log out
+        duration_ticks = tick - sess["login_tick"]
+        if duration_ticks >= 6 and random.random() < 0.25:
+            user = sess["user"]
+            payload = {
+                "nodeId": node_id,
+                "event": "logout",
+                "username": user,
+                "ts": ts
+            }
+            try:
+                data = json.dumps(payload).encode("utf-8")
+                req = urllib.request.Request(
+                    session_event_url,
+                    data=data,
+                    headers={
+                        "Content-Type": "application/json",
+                        "X-ProcessShield-Key": key
+                    }
+                )
+                urllib.request.urlopen(req, timeout=3)
+                print(f"[Simulator Session] 🔴 Student '{user}' LOGGED OUT on '{node_id}' (Session ended)")
+            except Exception:
+                pass
+            node_sessions.pop(node_id, None)
+
 # Simulated virtual machines profiles
 VIRTUAL_NODES_CONFIG = [
     {
@@ -173,14 +239,15 @@ def generate_telemetry(config, tick, key):
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="ProcessShield Virtual Computers Simulator")
-    parser.add_argument("--server", default="http://127.0.0.1:8080", help="Master server URL (default: http://127.0.0.1:8080)")
+    parser.add_argument("--server", default="http://127.0.0.1:5000", help="Master server URL (default: http://127.0.0.1:5000)")
     parser.add_argument("--key", default=DEFAULT_AUTH_KEY, help=f"Security key (default: {DEFAULT_AUTH_KEY})")
     parser.add_argument("--interval", type=int, default=5, help="Telemetry reporting interval in seconds (default: 5)")
     parser.add_argument("--nodes", type=int, default=3, help="Number of simulated nodes (1 to 3, default: 3)")
     args = parser.parse_args()
 
     active_nodes = VIRTUAL_NODES_CONFIG[:max(1, min(len(VIRTUAL_NODES_CONFIG), args.nodes))]
-    target_url = f"{args.server.rstrip('/')}/api/report"
+    base_server = args.server.rstrip('/')
+    target_url = f"{base_server}/api/report"
 
     print("=" * 72)
     print("      PROCESSSHIELD MULTI-NODE SIMULATOR (VIRTUAL COMPUTERS)        ")
@@ -200,6 +267,7 @@ def main():
         tick += 1
         for node_conf in active_nodes:
             telemetry = generate_telemetry(node_conf, tick, args.key)
+            handle_simulated_sessions(base_server, telemetry['node_id'], tick, args.key)
             try:
                 data = json.dumps(telemetry).encode("utf-8")
                 req = urllib.request.Request(

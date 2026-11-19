@@ -1,0 +1,148 @@
+import axios from 'axios';
+import {
+  FleetSummary,
+  NodeInfo,
+  AlertItem,
+  SoftwareItem,
+  DailyReportItem,
+  DeadlockSimulationResponse,
+  BankersAlgorithmResponse
+} from '../types';
+
+const api = axios.create({
+  baseURL: '/api',
+  timeout: 15000,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+export const fleetApi = {
+  getStatus: () => api.get('/status').then(res => res.data),
+  getNodes: (): Promise<{ nodes: Record<string, NodeInfo>; summary: FleetSummary }> =>
+    api.get('/nodes').then(res => res.data),
+  purgeOffline: () => api.post('/nodes/purge_offline').then(res => res.data),
+  getHistory: (nodeId: string, hours = 24) =>
+    api.get(`/history?node_id=${encodeURIComponent(nodeId)}&hours=${hours}`).then(res => res.data)
+};
+
+export const simulatorApi = {
+  toggle: () => api.post('/simulator/toggle').then(res => res.data),
+  getStatus: () => api.get('/simulator/status').then(res => res.data)
+};
+
+export const alertsApi = {
+  getAlerts: (nodeId?: string, limit = 100): Promise<{ alerts: AlertItem[]; total: number }> => {
+    const qs = new URLSearchParams();
+    if (nodeId) qs.append('node_id', nodeId);
+    if (limit) qs.append('limit', limit.toString());
+    const str = qs.toString();
+    return api.get(`/alerts${str ? `?${str}` : ''}`).then(res => res.data);
+  }
+};
+
+export const reportsApi = {
+  getReports: (): Promise<{ reports: DailyReportItem[] }> => api.get('/reports').then(res => res.data),
+  generate: () => api.post('/reports/generate').then(res => res.data)
+};
+
+export const softwareApi = {
+  getSoftware: (nodeId?: string, refresh = false): Promise<{ packages: SoftwareItem[]; total: number }> => {
+    const params = new URLSearchParams();
+    if (nodeId) params.append('node_id', nodeId);
+    if (refresh) params.append('refresh', '1');
+    const qs = params.toString();
+    return api.get(`/software${qs ? `?${qs}` : ''}`).then(res => res.data);
+  },
+  rescan: (nodeId?: string) => api.post('/software/rescan', { node_id: nodeId }).then(res => res.data)
+};
+
+export const algorithmApi = {
+  runDeadlock: (scenario = 'classic_2p'): Promise<DeadlockSimulationResponse> =>
+    api.post('/algorithms/deadlock', { scenario }).then(res => res.data),
+  runBankers: (scenario = 'safe'): Promise<BankersAlgorithmResponse> =>
+    api.post('/algorithms/bankers', { scenario }).then(res => res.data),
+  requestResources: (payload: {
+    processId: number;
+    request: number[];
+    allocation: number[][];
+    max: number[][];
+    available: number[];
+  }) => api.post('/algorithms/bankers/request', payload).then(res => res.data)
+};
+
+export const sshApi = {
+  test: (params: any) => api.post('/ssh/test', params).then(res => res.data),
+  connect: (params: any) => api.post('/ssh/connect', params).then(res => res.data),
+  getNodes: () => api.get('/ssh/nodes').then(res => res.data),
+  remove: (nodeId: string) => api.post('/ssh/remove', { node_id: nodeId }).then(res => res.data),
+  poll: (nodeId: string) => api.post('/ssh/poll', { node_id: nodeId }).then(res => res.data)
+};
+
+export const labsApi = {
+  getLabs: (): Promise<{ labs: any[]; unassigned: number }> =>
+    api.get('/labs').then(res => res.data),
+  getLab: (id: string): Promise<{ lab: any }> =>
+    api.get(`/labs/${id}`).then(res => res.data),
+  createLab: (data: { name: string; description?: string; capacity?: number; prefix?: string }) =>
+    api.post('/labs', data).then(res => res.data),
+  updateLab: (id: string, data: any) =>
+    api.put(`/labs/${id}`, data).then(res => res.data),
+  deleteLab: (id: string) =>
+    api.delete(`/labs/${id}`).then(res => res.data),
+  getLabOverview: (id: string) =>
+    api.get(`/labs/${id}/overview`).then(res => res.data),
+  getLabUsage: (id: string, days = 7) =>
+    api.get(`/labs/${id}/usage?days=${days}`).then(res => res.data),
+  assignByPrefix: (id: string, prefix: string) =>
+    api.post(`/labs/${id}/assign-by-prefix`, { prefix }).then(res => res.data),
+  getUnassignedNodes: () =>
+    api.get('/labs/unassigned/nodes').then(res => res.data),
+  assignNodes: (nodeIds: string[], labId: string | null) =>
+    api.put('/nodes/assign', { nodeIds, labId }).then(res => res.data),
+  setSeat: (nodeId: string, seat: number | null) =>
+    api.put(`/nodes/${encodeURIComponent(nodeId)}/seat`, { seat }).then(res => res.data)
+};
+
+export const sessionsApi = {
+  getSessions: (params: {
+    labId?: string;
+    nodeId?: string;
+    username?: string;
+    from?: string;
+    to?: string;
+    active?: boolean;
+    limit?: number;
+  }): Promise<{ sessions: any[]; total: number }> => {
+    const qs = new URLSearchParams();
+    if (params.labId) qs.append('labId', params.labId);
+    if (params.nodeId) qs.append('nodeId', params.nodeId);
+    if (params.username) qs.append('username', params.username);
+    if (params.from) qs.append('from', params.from);
+    if (params.to) qs.append('to', params.to);
+    if (params.active !== undefined) qs.append('active', String(params.active));
+    if (params.limit) qs.append('limit', String(params.limit));
+    const str = qs.toString();
+    return api.get(`/sessions${str ? `?${str}` : ''}`).then(res => res.data);
+  },
+  getExportUrl: (params: {
+    labId?: string;
+    nodeId?: string;
+    username?: string;
+    from?: string;
+    to?: string;
+    active?: boolean;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params.labId) qs.append('labId', params.labId);
+    if (params.nodeId) qs.append('nodeId', params.nodeId);
+    if (params.username) qs.append('username', params.username);
+    if (params.from) qs.append('from', params.from);
+    if (params.to) qs.append('to', params.to);
+    if (params.active !== undefined) qs.append('active', String(params.active));
+    const str = qs.toString();
+    return `/api/sessions/export${str ? `?${str}` : ''}`;
+  }
+};
+
+export default api;

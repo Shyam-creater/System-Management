@@ -23,6 +23,12 @@ try:
 except ImportError:
     discover_master_server = None
 
+# Import session tracker for Lab Management
+try:
+    from session_tracker import start_session_tracker_thread
+except ImportError:
+    start_session_tracker_thread = None
+
 DEFAULT_AUTH_KEY = "ProcessShield-OS-2026"
 DEFAULT_INTERVAL = 5
 
@@ -175,6 +181,15 @@ def get_ram_stats():
             return round(total_gb, 1), round(used_gb, 1), round(pct, 1)
         except Exception:
             return 8.0, 4.0, 50.0
+    elif sys_name == "Windows":
+        try:
+            import psutil
+            vm = psutil.virtual_memory()
+            total_gb = vm.total / (1024 ** 3)
+            used_gb = vm.used / (1024 ** 3)
+            return round(total_gb, 1), round(used_gb, 1), round(vm.percent, 1)
+        except Exception:
+            return 16.0, 8.0, 50.0
     return 16.0, 8.0, 50.0
 
 def get_net_io_stats():
@@ -213,6 +228,13 @@ def get_net_io_stats():
                     total_rx += int(cols[0])
                     total_tx += int(cols[8])
             return round(total_tx / 1024.0, 1), round(total_rx / 1024.0, 1)
+        except Exception:
+            return 0.0, 0.0
+    elif sys_name == "Windows":
+        try:
+            import psutil
+            net = psutil.net_io_counters()
+            return round(net.bytes_sent / 1024.0, 1), round(net.bytes_recv / 1024.0, 1)
         except Exception:
             return 0.0, 0.0
     return 0.0, 0.0
@@ -284,8 +306,38 @@ def get_processes():
     except Exception:
         pass
 
+    if not processes and platform.system() == "Windows":
+        try:
+            import psutil
+            total_cpu = psutil.cpu_percent(interval=None)
+            for p in psutil.process_iter(['pid', 'ppid', 'name', 'username', 'status', 'cpu_percent', 'memory_info']):
+                try:
+                    info = p.info
+                    pid = info['pid']
+                    ppid = info.get('ppid') or 0
+                    name = info.get('name') or 'unknown'
+                    user = info.get('username') or 'SYSTEM'
+                    cpu = info.get('cpu_percent') or 0.0
+                    rss = (info.get('memory_info').rss / (1024.0 * 1024.0)) if info.get('memory_info') else 0.0
+                    is_user_app = not any(k in user.lower() for k in ('system', 'local service', 'network service'))
+                    processes.append({
+                        "pid": pid,
+                        "ppid": ppid,
+                        "name": name,
+                        "user": user,
+                        "is_user_app": is_user_app,
+                        "category": "Application" if is_user_app else "Background Process",
+                        "state": "RUNNING" if info.get('status') == 'running' else "SLEEPING",
+                        "cpu_percent": round(cpu, 1),
+                        "memory_mb": round(rss, 1)
+                    })
+                except Exception:
+                    continue
+        except Exception:
+            pass
+
     ncpu = os.cpu_count() or 1
-    norm_cpu = min(100.0, total_cpu / ncpu)
+    norm_cpu = min(100.0, total_cpu / ncpu) if platform.system() != "Windows" else total_cpu
     processes.sort(key=lambda p: p["cpu_percent"], reverse=True)
     return round(norm_cpu, 1), len(processes), processes[:30]
 
@@ -366,6 +418,12 @@ def main():
     print(f" [*] Security Auth Key:   {args.key}")
     print("=" * 72 + "\n")
 
+    # Start Lab Session Tracker thread
+    node_id = f"{hostname} ({ip})"
+    if start_session_tracker_thread:
+        print(f" [*] Launching Lab Session Tracker for '{node_id}'...")
+        start_session_tracker_thread(server_url=target_server, node_id=node_id, interval=args.interval)
+
     consecutive_failures = 0
 
     while True:
@@ -416,7 +474,7 @@ def main():
                     "X-ProcessShield-Key": args.key
                 }
             )
-            with urllib.request.urlopen(req, timeout=4) as resp:
+            with urllib.request.urlopen(req, timeout=10) as resp:
                 status_code = resp.getcode()
                 if status_code == 200:
                     if consecutive_failures > 0:
