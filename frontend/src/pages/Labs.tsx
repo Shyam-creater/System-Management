@@ -30,18 +30,57 @@ import {
   X,
   Check,
   AlertTriangle,
-  Play
+  Play,
+  BarChart3,
+  Package,
+  FileSpreadsheet,
+  Flame,
+  Zap
 } from 'lucide-react';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer
+} from 'recharts';
 import { PageHeader } from '../components/layout/PageHeader';
-import { labsApi, sessionsApi, commandsApi, policiesApi, schedulesApi, authApi } from '../services/api';
-import { LabItem, LabOverviewMachine, SessionItem, CommandItem, PolicyItem, ViolationItem, ScheduleItem } from '../types';
+import {
+  labsApi,
+  sessionsApi,
+  commandsApi,
+  policiesApi,
+  schedulesApi,
+  authApi,
+  reportsApi,
+  softwareApi
+} from '../services/api';
+import {
+  LabItem,
+  LabOverviewMachine,
+  SessionItem,
+  CommandItem,
+  PolicyItem,
+  ViolationItem,
+  ScheduleItem,
+  DailyReportItem,
+  SoftwareItem
+} from '../types';
 
 export const Labs: React.FC = () => {
   const queryClient = useQueryClient();
 
   // Selected lab & active sub-tab
   const [selectedLabId, setSelectedLabId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'seatmap' | 'commands' | 'policies' | 'schedules' | 'sessions' | 'unassigned'>('seatmap');
+  const [activeTab, setActiveTab] = useState<'seatmap' | 'reports' | 'software' | 'commands' | 'policies' | 'schedules' | 'sessions' | 'unassigned'>('seatmap');
+
+  // Sub-view specific filters & selectors for lab systems
+  const [selectedReportNodeId, setSelectedReportNodeId] = useState<string | null>(null);
+  const [selectedSoftwareNodeId, setSelectedSoftwareNodeId] = useState<string | null>(null);
+  const [softwareSearchQuery, setSoftwareSearchQuery] = useState('');
+  const [softwareCategoryFilter, setSoftwareCategoryFilter] = useState('all');
 
   // Modals state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -164,7 +203,51 @@ export const Labs: React.FC = () => {
     refetchInterval: 6000
   });
 
+  // Lab Daily Reports Query
+  const { data: reportsData } = useQuery({
+    queryKey: ['reports'],
+    queryFn: () => reportsApi.getReports(),
+    enabled: activeTab === 'reports',
+    refetchInterval: 10000
+  });
+
+  // Lab Usage History Query (7 days)
+  const { data: labUsageData } = useQuery({
+    queryKey: ['labUsageReport', activeLabId],
+    queryFn: () => (activeLabId ? labsApi.getLabUsage(activeLabId, 7) : null),
+    enabled: !!activeLabId && activeTab === 'reports'
+  });
+
+  const effectiveSoftwareNodeId =
+    selectedSoftwareNodeId || (overviewData?.machines?.[0]?.node_id ?? null);
+
+  // Workstation Software Query
+  const { data: softwareData, isLoading: isSoftwareLoading } = useQuery({
+    queryKey: ['software', effectiveSoftwareNodeId],
+    queryFn: () =>
+      effectiveSoftwareNodeId ? softwareApi.getSoftware(effectiveSoftwareNodeId, false) : null,
+    enabled: !!effectiveSoftwareNodeId && activeTab === 'software',
+    refetchOnWindowFocus: false
+  });
+
   // 2. Mutations
+  const generateDailyReportMutation = useMutation({
+    mutationFn: reportsApi.generate,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reports'] });
+      setActionNotice('Daily audit report snapshot generated.');
+      setTimeout(() => setActionNotice(null), 4000);
+    }
+  });
+
+  const rescanSoftwareMutation = useMutation({
+    mutationFn: () => softwareApi.rescan(effectiveSoftwareNodeId || undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['software', effectiveSoftwareNodeId] });
+      setActionNotice('Software rescan completed successfully.');
+      setTimeout(() => setActionNotice(null), 4000);
+    }
+  });
   const createLabMutation = useMutation({
     mutationFn: labsApi.createLab,
     onSuccess: (data) => {
@@ -316,6 +399,68 @@ export const Labs: React.FC = () => {
   const schedules: ScheduleItem[] = schedulesData?.schedules || [];
 
   const onlineInCurrentLab = machines.filter(m => m.isOnline).length;
+
+  // Reports & Software Calculations for Active Lab
+  const allReports: DailyReportItem[] = reportsData?.reports || [];
+  const labMachineNodeIds = new Set(machines.map(m => m.node_id));
+  const labReports = allReports.filter(r => labMachineNodeIds.has(r.node_id));
+  const displayReports = selectedReportNodeId
+    ? labReports.filter(r => r.node_id === selectedReportNodeId)
+    : labReports;
+
+  const usageDays = labUsageData?.days || [];
+  const totalSessions7d = usageDays.reduce((acc: number, d: any) => acc + (d.sessions || 0), 0);
+  const totalHours7d = usageDays.reduce((acc: number, d: any) => acc + (d.hours || 0), 0);
+
+  // Peak-Hours Heatmap: 5 weekdays x 4 time blocks
+  const heatmapDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+  const heatmapSlots = [
+    { label: '08:00 - 11:00', start: 8, end: 11 },
+    { label: '11:00 - 14:00', start: 11, end: 14 },
+    { label: '14:00 - 17:00', start: 14, end: 17 },
+    { label: '17:00 - 20:00', start: 17, end: 20 }
+  ];
+  const heatmapMatrix: number[][] = heatmapDays.map(() => [0, 0, 0, 0]);
+  for (const s of sessions) {
+    const d = new Date(s.loginAt);
+    const dayIdx = (d.getDay() + 6) % 7;
+    if (dayIdx >= 0 && dayIdx < 5) {
+      const h = d.getHours();
+      for (let si = 0; si < heatmapSlots.length; si++) {
+        if (h >= heatmapSlots[si].start && h < heatmapSlots[si].end) {
+          heatmapMatrix[dayIdx][si] += 1;
+        }
+      }
+    }
+  }
+  const maxHeatVal = Math.max(1, ...heatmapMatrix.flat());
+
+  // Software packages calculation
+  const rawPackages: SoftwareItem[] = softwareData?.packages || [];
+  const filteredPackages = rawPackages.filter((pkg) => {
+    const q = softwareSearchQuery.toLowerCase().trim();
+    const matchesSearch =
+      !q ||
+      (pkg.name && pkg.name.toLowerCase().includes(q)) ||
+      (pkg.publisher && pkg.publisher.toLowerCase().includes(q)) ||
+      (pkg.version && pkg.version.toLowerCase().includes(q)) ||
+      (pkg.install_path && pkg.install_path.toLowerCase().includes(q)) ||
+      (pkg.category && pkg.category.toLowerCase().includes(q));
+
+    let matchesCategory = true;
+    if (softwareCategoryFilter === 'desktop') {
+      matchesCategory = !!(pkg.category?.toLowerCase().includes('desktop') || pkg.category?.toLowerCase().includes('application'));
+    } else if (softwareCategoryFilter === 'snap') {
+      matchesCategory = !!(pkg.source?.toLowerCase().includes('snap') || pkg.category?.toLowerCase().includes('snap'));
+    } else if (softwareCategoryFilter === 'devel') {
+      matchesCategory = !!(pkg.category?.toLowerCase().includes('development') || pkg.name?.toLowerCase().includes('code') || pkg.name?.toLowerCase().includes('git'));
+    } else if (softwareCategoryFilter === 'system') {
+      matchesCategory = !!(pkg.source?.toLowerCase().includes('dpkg') || pkg.source?.toLowerCase().includes('registry') || pkg.category?.toLowerCase().includes('system'));
+    }
+    return matchesSearch && matchesCategory;
+  });
+
+  const selectedSoftwareMachine = machines.find(m => m.node_id === effectiveSoftwareNodeId) || null;
 
   return (
     <div className="space-y-6 animate-fadeIn pb-12">
@@ -469,6 +614,26 @@ export const Labs: React.FC = () => {
               🖥️ Live Seat Map
             </button>
             <button
+              onClick={() => setActiveTab('reports')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 ${
+                activeTab === 'reports'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              }`}
+            >
+              📋 Daily Reports ({labReports.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('software')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 ${
+                activeTab === 'software'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              }`}
+            >
+              📦 Software Inventory
+            </button>
+            <button
               onClick={() => setActiveTab('commands')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 ${
                 activeTab === 'commands'
@@ -506,7 +671,7 @@ export const Labs: React.FC = () => {
                   : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
               }`}
             >
-              📋 Student Sessions
+              👥 Student Sessions ({sessions.length})
             </button>
           </div>
 
@@ -733,26 +898,497 @@ export const Labs: React.FC = () => {
                     {/* Active Student Status or Idle State */}
                     <div className="pt-2 border-t border-slate-100/80 mt-1">
                       {hasUser ? (
-                        <div className="flex items-center gap-1.5 text-blue-700 font-bold text-xs truncate">
+                        <div className="flex items-center gap-1.5 text-blue-700 font-bold text-xs truncate mb-2">
                           <Users className="w-3.5 h-3.5 shrink-0" />
                           <span className="truncate" title={node.currentUser || ''}>
                             {node.currentUser}
                           </span>
                         </div>
                       ) : (
-                        <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                        <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono mb-2">
                           <span>{isOnline ? 'Available' : 'Offline'}</span>
                           {isOnline && (
                             <span>{node.cpu_percent?.toFixed(0) || '0'}% CPU</span>
                           )}
                         </div>
                       )}
+
+                      {/* Workstation Direct Action Shortcuts */}
+                      <div className="grid grid-cols-2 gap-1.5 pt-1.5 border-t border-slate-100/60">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedReportNodeId(node.node_id);
+                            setActiveTab('reports');
+                          }}
+                          className="px-1.5 py-1 rounded-lg bg-blue-50/80 hover:bg-blue-100 text-blue-600 text-[10px] font-semibold flex items-center justify-center gap-1 transition"
+                          title="View Workstation Daily Reports"
+                        >
+                          <BarChart3 className="w-3 h-3" />
+                          <span>Reports</span>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedSoftwareNodeId(node.node_id);
+                            setActiveTab('software');
+                          }}
+                          className="px-1.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200/80 text-slate-700 text-[10px] font-semibold flex items-center justify-center gap-1 transition"
+                          title="View Workstation Software Inventory"
+                        >
+                          <Package className="w-3 h-3" />
+                          <span>Software</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* 4. MAIN CONTENT AREA: TAB - DAILY REPORTS & TELEMETRY AUDIT */}
+      {activeTab === 'reports' && currentLab && (
+        <div className="space-y-6">
+          {/* Header Bar */}
+          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <span>📋</span> Daily Performance & Telemetry Reports — {currentLab.name}
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Automated hardware snapshots, peak CPU/RAM audits, and weekly session occupancy for this lab
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Workstation Filter */}
+              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/80 rounded-xl px-2.5 py-1.5">
+                <Monitor className="w-3.5 h-3.5 text-slate-500" />
+                <select
+                  value={selectedReportNodeId || 'ALL'}
+                  onChange={(e) => setSelectedReportNodeId(e.target.value === 'ALL' ? null : e.target.value)}
+                  className="bg-transparent text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer"
+                >
+                  <option value="ALL">All Workstations in {currentLab.name}</option>
+                  {machines.map((m) => (
+                    <option key={m.node_id} value={m.node_id}>
+                      {m.hostname} (Seat #{m.seat ?? '—'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Generate Report Button */}
+              <button
+                onClick={() => generateDailyReportMutation.mutate()}
+                disabled={generateDailyReportMutation.isPending}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-md shadow-blue-500/20 transition active:scale-95 disabled:opacity-50"
+              >
+                <Zap className="w-3.5 h-3.5 text-amber-300" />
+                <span>{generateDailyReportMutation.isPending ? 'Generating...' : 'Generate Daily Report'}</span>
+              </button>
+
+              {/* Export Buttons */}
+              <a
+                href={`/api/export/excel?type=reports&format=xlsx${selectedReportNodeId ? `&node_id=${encodeURIComponent(selectedReportNodeId)}` : ''}`}
+                download
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-semibold text-xs border border-emerald-200/80 transition shadow-sm"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>Export Excel</span>
+              </a>
+
+              <a
+                href={`/api/export/csv?type=reports${selectedReportNodeId ? `&node_id=${encodeURIComponent(selectedReportNodeId)}` : ''}`}
+                download
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 font-semibold text-xs border border-slate-200 transition shadow-sm"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Export CSV</span>
+              </a>
+            </div>
+          </div>
+
+          {/* Metric Stats Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm">
+              <span className="text-[11px] font-semibold text-slate-400 block">7-Day Sessions</span>
+              <span className="text-2xl font-extrabold text-blue-600 mt-1 block">{totalSessions7d}</span>
+              <span className="text-[10px] text-slate-400 mt-0.5 block">Student Logins</span>
+            </div>
+            <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm">
+              <span className="text-[11px] font-semibold text-slate-400 block">Total Lab Hours</span>
+              <span className="text-2xl font-extrabold text-slate-900 mt-1 block">{totalHours7d.toFixed(1)} hrs</span>
+              <span className="text-[10px] text-emerald-600 mt-0.5 block">Occupancy Time</span>
+            </div>
+            <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm">
+              <span className="text-[11px] font-semibold text-slate-400 block">Lab Workstations</span>
+              <span className="text-2xl font-extrabold text-indigo-600 mt-1 block">{machines.length}</span>
+              <span className="text-[10px] text-slate-400 mt-0.5 block">{onlineInCurrentLab} Online Desktops</span>
+            </div>
+            <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm">
+              <span className="text-[11px] font-semibold text-slate-400 block">Audited Snapshots</span>
+              <span className="text-2xl font-extrabold text-slate-900 mt-1 block">{displayReports.length}</span>
+              <span className="text-[10px] text-slate-400 mt-0.5 block">Daily Records</span>
+            </div>
+          </div>
+
+          {/* Charts & Heatmap Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            {/* 7-Day Usage Trend Chart */}
+            <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-3">
+              <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                <BarChart3 className="w-3.5 h-3.5 text-blue-600" />
+                <span>7-Day Utilization Trend (Active Hours)</span>
+              </h3>
+              <div className="h-60 w-full pt-2">
+                {usageDays.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-xs text-slate-400">
+                    No session usage history recorded in the past 7 days.
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={usageDays} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="labUsageHoursGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#1d68ff" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#1d68ff" stopOpacity={0.0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: '#ffffff',
+                          borderRadius: '12px',
+                          border: '1px solid #e2e8f0',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                          fontSize: '12px'
+                        }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="hours"
+                        name="Active Hours"
+                        stroke="#1d68ff"
+                        strokeWidth={2.5}
+                        fillOpacity={1}
+                        fill="url(#labUsageHoursGrad)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+
+            {/* Peak-Hours Heatmap */}
+            <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-3">
+              <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                <Flame className="w-3.5 h-3.5 text-amber-500" />
+                <span>Peak-Hours Occupancy Heatmap</span>
+              </h3>
+              <p className="text-[11px] text-slate-400">Activity volume distribution by weekday and time slot</p>
+              <div className="overflow-x-auto pt-2">
+                <table className="w-full text-center border-separate border-spacing-1.5">
+                  <thead>
+                    <tr>
+                      <th className="text-[10px] font-semibold text-slate-400 text-left pb-1">Day</th>
+                      {heatmapSlots.map((s, idx) => (
+                        <th key={idx} className="text-[10px] font-semibold text-slate-400 pb-1">{s.label}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {heatmapDays.map((day, dIdx) => (
+                      <tr key={day}>
+                        <td className="text-xs font-bold text-slate-600 text-left pr-2">{day}</td>
+                        {heatmapSlots.map((_, sIdx) => {
+                          const val = heatmapMatrix[dIdx][sIdx];
+                          const ratio = val / maxHeatVal;
+                          const bg = val === 0
+                            ? 'bg-slate-100 text-slate-400'
+                            : ratio > 0.6
+                            ? 'bg-blue-600 text-white font-bold'
+                            : ratio > 0.3
+                            ? 'bg-blue-300 text-blue-950 font-semibold'
+                            : 'bg-blue-100 text-blue-800 font-semibold';
+                          return (
+                            <td
+                              key={sIdx}
+                              className={`h-9 rounded-xl text-xs transition select-none ${bg}`}
+                              title={`${day} ${heatmapSlots[sIdx].label}: ${val} sessions`}
+                            >
+                              {val > 0 ? val : '·'}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* Daily Reports Table */}
+          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Daily Telemetry Audit Logs ({displayReports.length})
+              </h4>
+              <span className="text-[11px] text-slate-400 font-medium">
+                Retention window: 30 days
+              </span>
+            </div>
+
+            {displayReports.length === 0 ? (
+              <div className="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                <BarChart3 className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <p className="text-xs font-semibold text-slate-600">No daily reports recorded yet for this selection.</p>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Click "Generate Daily Report" above to compile an instant hardware audit snapshot.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200/80">
+                    <tr>
+                      <th className="py-2.5 px-3">Date</th>
+                      <th className="py-2.5 px-3">Workstation</th>
+                      <th className="py-2.5 px-3">Avg CPU</th>
+                      <th className="py-2.5 px-3">Peak CPU</th>
+                      <th className="py-2.5 px-3">Avg Memory</th>
+                      <th className="py-2.5 px-3">Peak Memory</th>
+                      <th className="py-2.5 px-3">Uptime</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                    {displayReports.map((r, i) => {
+                      const m = machines.find(x => x.node_id === r.node_id);
+                      return (
+                        <tr key={r._id || i} className="hover:bg-slate-50/80 transition">
+                          <td className="py-2.5 px-3 font-semibold text-slate-900">{r.report_date}</td>
+                          <td className="py-2.5 px-3">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-blue-600">
+                                {m?.hostname || r.hostname || r.node_id}
+                              </span>
+                              {m?.seat && (
+                                <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">
+                                  Seat #{m.seat}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3">{(r.avg_cpu ?? 0).toFixed(1)}%</td>
+                          <td className="py-2.5 px-3 font-bold text-amber-600">{(r.max_cpu ?? 0).toFixed(1)}%</td>
+                          <td className="py-2.5 px-3">{(r.avg_ram ?? 0).toFixed(1)}%</td>
+                          <td className="py-2.5 px-3 font-bold text-indigo-600">{(r.max_ram ?? 0).toFixed(1)}%</td>
+                          <td className="py-2.5 px-3 font-mono text-[11px] text-slate-500">
+                            {r.uptime_percent !== undefined ? `${r.uptime_percent.toFixed(1)}%` : '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 5. MAIN CONTENT AREA: TAB - INSTALLED SOFTWARE INVENTORY */}
+      {activeTab === 'software' && currentLab && (
+        <div className="space-y-6">
+          {/* Header Bar */}
+          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <span>📦</span> Installed Software Inventory — {currentLab.name}
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Audit installed applications, compiler toolchains, package versions, and system libraries on lab desktops
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Desktop Selector */}
+              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/80 rounded-xl px-2.5 py-1.5">
+                <Monitor className="w-3.5 h-3.5 text-slate-500" />
+                <select
+                  value={effectiveSoftwareNodeId || ''}
+                  onChange={(e) => setSelectedSoftwareNodeId(e.target.value)}
+                  className="bg-transparent text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer"
+                >
+                  {machines.length === 0 ? (
+                    <option value="">No Workstations Assigned</option>
+                  ) : (
+                    machines.map((m) => (
+                      <option key={m.node_id} value={m.node_id}>
+                        {m.hostname} (Seat #{m.seat ?? '—'}) {m.isOnline ? '🟢' : '⚪'}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+
+              {/* Rescan Button */}
+              <button
+                onClick={() => rescanSoftwareMutation.mutate()}
+                disabled={!effectiveSoftwareNodeId || rescanSoftwareMutation.isPending}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-blue-600 text-xs font-semibold shadow-sm transition active:scale-95 disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${rescanSoftwareMutation.isPending ? 'animate-spin text-blue-600' : ''}`} />
+                <span>Rescan</span>
+              </button>
+
+              {/* Export Excel (.xlsx) */}
+              <a
+                href={`/api/export/excel?type=software&format=xlsx&node_id=${encodeURIComponent(effectiveSoftwareNodeId || '')}`}
+                download
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-md shadow-emerald-600/20 transition active:scale-95"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>Export Excel</span>
+              </a>
+
+              {/* Export CSV (.csv) */}
+              <a
+                href={`/api/export/csv?type=software&node_id=${encodeURIComponent(effectiveSoftwareNodeId || '')}`}
+                download
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 font-semibold text-xs border border-slate-200 transition shadow-sm"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Export CSV</span>
+              </a>
+            </div>
+          </div>
+
+          {/* Search, Filter Pills & Station Banner */}
+          <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-wrap items-center justify-between gap-3">
+            {/* Search Input */}
+            <div className="relative flex-1 min-w-[240px] max-w-md">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search packages, versions, publishers, paths..."
+                value={softwareSearchQuery}
+                onChange={(e) => setSoftwareSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              />
+            </div>
+
+            {/* Category Filter Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+              {[
+                { id: 'all', label: 'All Packages' },
+                { id: 'desktop', label: 'Desktop Apps' },
+                { id: 'devel', label: 'Development' },
+                { id: 'system', label: 'System' },
+                { id: 'snap', label: 'Snap Packages' }
+              ].map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setSoftwareCategoryFilter(cat.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                    softwareCategoryFilter === cat.id
+                      ? 'bg-blue-600 text-white shadow-sm font-bold'
+                      : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/60'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Selected Station Status Summary */}
+            {selectedSoftwareMachine && (
+              <div className="text-[11px] font-semibold text-slate-500 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200/80">
+                <span className="font-bold text-slate-800">{selectedSoftwareMachine.hostname}</span>: {filteredPackages.length} packages found
+              </div>
+            )}
+          </div>
+
+          {/* Software Table */}
+          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-4">
+            {isSoftwareLoading ? (
+              <div className="p-12 text-center text-xs text-slate-400 flex flex-col items-center justify-center gap-2">
+                <RefreshCw className="w-6 h-6 animate-spin text-blue-500" />
+                <span>Scanning workstation package repository...</span>
+              </div>
+            ) : filteredPackages.length === 0 ? (
+              <div className="p-10 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                <Package className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <p className="text-xs font-semibold text-slate-600">
+                  {machines.length === 0
+                    ? 'No workstations in this lab yet.'
+                    : 'No installed software matches your query.'}
+                </p>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Try clearing search filters or click "Rescan" to query the node agent.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200/80">
+                    <tr>
+                      <th className="py-2.5 px-3">Application / Package</th>
+                      <th className="py-2.5 px-3">Version</th>
+                      <th className="py-2.5 px-3">Publisher / Vendor</th>
+                      <th className="py-2.5 px-3">Category</th>
+                      <th className="py-2.5 px-3">Install Path / Source</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                    {filteredPackages.slice(0, 100).map((pkg, i) => (
+                      <tr key={i} className="hover:bg-slate-50/80 transition">
+                        <td className="py-2.5 px-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-[10px]">
+                              {pkg.name ? pkg.name.charAt(0).toUpperCase() : 'P'}
+                            </div>
+                            <span className="font-semibold text-slate-900">{pkg.name}</span>
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-3 font-mono text-[11px] text-slate-600">{pkg.version || '—'}</td>
+                        <td className="py-2.5 px-3 text-slate-500">{pkg.publisher || 'System'}</td>
+                        <td className="py-2.5 px-3">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              pkg.category?.toLowerCase().includes('development')
+                                ? 'bg-purple-100 text-purple-700'
+                                : pkg.category?.toLowerCase().includes('desktop')
+                                ? 'bg-blue-100 text-blue-700'
+                                : pkg.source?.toLowerCase().includes('snap')
+                                ? 'bg-amber-100 text-amber-700'
+                                : 'bg-slate-100 text-slate-700'
+                            }`}
+                          >
+                            {pkg.category || pkg.source || 'General'}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 font-mono text-[10px] text-slate-400 truncate max-w-xs" title={pkg.install_path || ''}>
+                          {pkg.install_path || pkg.source || '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {filteredPackages.length > 100 && (
+                  <p className="text-[11px] text-slate-400 text-center pt-3">
+                    Showing top 100 of {filteredPackages.length} packages. Use search or Excel export to view the entire list.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

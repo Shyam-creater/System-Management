@@ -3,9 +3,7 @@ import { NavLink } from 'react-router-dom';
 import {
   Shield,
   Monitor,
-  Building,
-  BarChart3,
-  Package
+  Building
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { fleetApi, alertsApi } from '../../services/api';
@@ -13,8 +11,6 @@ import { fleetApi, alertsApi } from '../../services/api';
 const navItems: Array<{ name: string; path: string; icon: any; emoji: string; badge?: boolean }> = [
   { name: 'Fleet Overview', path: '/', icon: Monitor, emoji: '🖥️' },
   { name: 'Computer Labs', path: '/labs', icon: Building, emoji: '🏛️' },
-  { name: 'Daily Reports', path: '/reports', icon: BarChart3, emoji: '📋' },
-  { name: 'Installed Software Inventory', path: '/software', icon: Package, emoji: '📦' },
 ];
 
 export const Sidebar: React.FC = () => {
