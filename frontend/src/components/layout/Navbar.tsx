@@ -1,16 +1,13 @@
 import React, { useState } from 'react';
-import { Search, Bell, User, ChevronDown, Plus, Database } from 'lucide-react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Search, Bell, User, ChevronDown, Database } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { fleetApi, alertsApi } from '../../services/api';
-import { AddComputerModal } from '../modals/AddComputerModal';
 import { useFleetStore } from '../../store/useFleetStore';
 import { useNavigate } from 'react-router-dom';
 
 export const Navbar: React.FC = () => {
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { searchFilter, setSearchFilter } = useFleetStore();
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   const { data: statusData } = useQuery({
@@ -49,15 +46,6 @@ export const Navbar: React.FC = () => {
 
         {/* Right Controls matching reference image */}
         <div className="flex items-center gap-3">
-          {/* Quick Add Computer Action */}
-          <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-semibold border border-blue-200/60 transition shadow-sm active:scale-95"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Node</span>
-          </button>
-
           {/* Database Status indicator */}
           <div
             title={`Database: ${statusData?.database?.connected ? 'MongoDB Atlas Connected' : 'Resilient Dual-Mode (In-Memory + Auto-Retry)'}`}
@@ -111,25 +99,16 @@ export const Navbar: React.FC = () => {
                   System Settings
                 </button>
                 <button
-                  onClick={() => { setShowProfileMenu(false); setIsAddModalOpen(true); }}
+                  onClick={() => { setShowProfileMenu(false); navigate('/labs'); }}
                   className="w-full text-left px-4 py-2 text-slate-600 hover:bg-blue-50 hover:text-blue-600 transition"
                 >
-                  Connect SSH Node
+                  Computer Labs Hub
                 </button>
               </div>
             )}
           </div>
         </div>
       </header>
-
-      {/* Add Computer Modal */}
-      <AddComputerModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onSuccess={() => {
-          queryClient.invalidateQueries({ queryKey: ['nodes'] });
-        }}
-      />
     </>
   );
 };

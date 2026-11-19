@@ -53,6 +53,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { PageHeader } from '../components/layout/PageHeader';
+import { AddComputerModal } from '../components/modals/AddComputerModal';
 import {
   labsApi,
   sessionsApi,
@@ -89,6 +90,7 @@ export const Labs: React.FC = () => {
   const [softwareCategoryFilter, setSoftwareCategoryFilter] = useState('all');
 
   // Modals state
+  const [isAddNodeModalOpen, setIsAddNodeModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isAssignPrefixOpen, setIsAssignPrefixOpen] = useState(false);
   const [prefixInput, setPrefixInput] = useState('');
@@ -717,6 +719,16 @@ export const Labs: React.FC = () => {
               )}
             </div>
 
+            {/* Add Node under Current Lab */}
+            <button
+              onClick={() => setIsAddNodeModalOpen(true)}
+              className="flex items-center gap-1.5 text-xs font-bold text-white px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/20 transition active:scale-95 shrink-0"
+              title={`Register and add a new computer node to ${currentLab.name}`}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Node</span>
+            </button>
+
             <button
               onClick={() => {
                 setPrefixInput(currentLab.prefix || '');
@@ -781,12 +793,19 @@ export const Labs: React.FC = () => {
               <Monitor className="w-12 h-12 text-slate-300 mx-auto mb-3" />
               <h3 className="text-base font-bold text-slate-800">No Desktops Assigned to {currentLab.name}</h3>
               <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-                Use "Prefix Bind" to associate computers starting with a common hostname prefix to this lab.
+                Add a computer directly to this lab via SSH or use "Prefix Bind" to associate computers by hostname.
               </p>
               <div className="mt-4 flex items-center justify-center gap-3">
                 <button
+                  onClick={() => setIsAddNodeModalOpen(true)}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition flex items-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Node to {currentLab.name}</span>
+                </button>
+                <button
                   onClick={() => setIsAssignPrefixOpen(true)}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition"
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-200 transition"
                 >
                   Assign by Hostname Prefix
                 </button>
@@ -1817,6 +1836,22 @@ export const Labs: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 11. MODAL: ADD NODE UNDER CURRENT LAB */}
+      {currentLab && (
+        <AddComputerModal
+          isOpen={isAddNodeModalOpen}
+          onClose={() => setIsAddNodeModalOpen(false)}
+          labId={currentLab.id}
+          labName={currentLab.name}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['nodes'] });
+            queryClient.invalidateQueries({ queryKey: ['labs'] });
+            queryClient.invalidateQueries({ queryKey: ['labOverview', currentLab.id] });
+            setActionNotice(`New workstation connected and assigned to ${currentLab.name}.`);
+          }}
+        />
       )}
     </div>
   );

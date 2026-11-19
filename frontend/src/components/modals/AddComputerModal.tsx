@@ -1,14 +1,22 @@
 import React, { useState } from 'react';
-import { X, Server, CheckCircle2, AlertCircle, Loader2, Key, Lock, Network } from 'lucide-react';
-import { sshApi } from '../../services/api';
+import { X, Server, CheckCircle2, AlertCircle, Loader2, Key, Lock, Network, Building2 } from 'lucide-react';
+import { sshApi, labsApi } from '../../services/api';
 
 interface AddComputerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  labId?: string;
+  labName?: string;
 }
 
-export const AddComputerModal: React.FC<AddComputerModalProps> = ({ isOpen, onClose, onSuccess }) => {
+export const AddComputerModal: React.FC<AddComputerModalProps> = ({
+  isOpen,
+  onClose,
+  onSuccess,
+  labId,
+  labName
+}) => {
   const [ip, setIp] = useState('');
   const [port, setPort] = useState(22);
   const [hostname, setHostname] = useState('');
@@ -79,7 +87,7 @@ export const AddComputerModal: React.FC<AddComputerModalProps> = ({ isOpen, onCl
     setAlert({ type: 'progress', message: `Registering and monitoring ${ip}...` });
 
     try {
-      await sshApi.connect({
+      const res = await sshApi.connect({
         ip: ip.trim(),
         port: Number(port) || 22,
         hostname: hostname.trim(),
@@ -90,7 +98,22 @@ export const AddComputerModal: React.FC<AddComputerModalProps> = ({ isOpen, onCl
         key_data: keyText.trim()
       });
 
-      setAlert({ type: 'success', message: `Computer registered successfully! Adding to fleet...` });
+      const effectiveNodeId = res?.node_id || `${hostname.trim() || ip.trim()} (${ip.trim()})`;
+
+      if (labId) {
+        try {
+          await labsApi.assignNodes([effectiveNodeId], labId);
+        } catch (assignErr) {
+          console.warn('Could not auto-assign node to lab:', assignErr);
+        }
+      }
+
+      setAlert({
+        type: 'success',
+        message: labName
+          ? `Workstation registered and assigned to ${labName}!`
+          : `Computer registered successfully! Adding to fleet...`
+      });
       setTimeout(() => {
         setConnecting(false);
         onClose();
@@ -113,8 +136,12 @@ export const AddComputerModal: React.FC<AddComputerModalProps> = ({ isOpen, onCl
               <Server className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-900">Add Computer via SSH</h3>
-              <p className="text-xs text-slate-500">Agentless remote node monitoring</p>
+              <h3 className="text-base font-bold text-slate-900">
+                {labName ? `Add Workstation to ${labName}` : 'Add Computer via SSH'}
+              </h3>
+              <p className="text-xs text-slate-500">
+                {labName ? `Agentless remote node monitoring • Assigned to ${labName}` : 'Agentless remote node monitoring'}
+              </p>
             </div>
           </div>
           <button
