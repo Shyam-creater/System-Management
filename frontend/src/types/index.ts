@@ -7,6 +7,7 @@ export interface ProcessItem {
   category: string;
   state: 'RUNNING' | 'SLEEPING' | 'IDLE' | 'STOPPED' | 'ZOMBIE' | string;
   cpu_percent: number;
+  gpu_percent?: number;
   memory_mb: number;
 }
 

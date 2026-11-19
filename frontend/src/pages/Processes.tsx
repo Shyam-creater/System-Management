@@ -116,6 +116,7 @@ export const Processes: React.FC = () => {
                 <th className="p-4">Process Name</th>
                 <th className="p-4">User</th>
                 <th className="p-4">CPU %</th>
+                <th className="p-4">GPU %</th>
                 <th className="p-4">Memory (RSS)</th>
                 <th className="p-4">Category</th>
                 <th className="p-4 text-right">Execution State</th>
@@ -124,7 +125,7 @@ export const Processes: React.FC = () => {
             <tbody className="divide-y divide-slate-100 text-slate-700 font-mono text-[11px]">
               {filteredProcesses.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-12 text-center text-slate-400 font-sans">
+                  <td colSpan={8} className="p-12 text-center text-slate-400 font-sans">
                     No active processes matching current filter.
                   </td>
                 </tr>
@@ -144,6 +145,7 @@ export const Processes: React.FC = () => {
                       </td>
                       <td className="p-4 text-slate-500 font-sans">{proc.user}</td>
                       <td className="p-4 font-semibold text-slate-900">{proc.cpu_percent.toFixed(1)}%</td>
+                      <td className="p-4 font-semibold text-sky-600">{(proc.gpu_percent ?? 0).toFixed(1)}%</td>
                       <td className="p-4 text-slate-600">{memDisplay}</td>
                       <td className="p-4 font-sans">
                         <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600">

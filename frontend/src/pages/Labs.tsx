@@ -1129,6 +1129,7 @@ export const Labs: React.FC = () => {
                     <th className="py-2.5 px-3">User</th>
                     <th className="py-2.5 px-3">Category</th>
                     <th className="py-2.5 px-3">CPU %</th>
+                    <th className="py-2.5 px-3">GPU %</th>
                     <th className="py-2.5 px-3">Memory (RSS)</th>
                     <th className="py-2.5 px-3 text-right">State</th>
                   </tr>
@@ -1136,7 +1137,7 @@ export const Labs: React.FC = () => {
                 <tbody className="divide-y divide-slate-100 font-mono text-[11px] text-slate-700">
                   {displayProcesses.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="py-12 text-center text-slate-400 font-sans">
+                      <td colSpan={9} className="py-12 text-center text-slate-400 font-sans">
                         No active processes matching the selected filters.
                       </td>
                     </tr>
@@ -1177,6 +1178,17 @@ export const Labs: React.FC = () => {
                                 <div
                                   className={`h-full ${p.cpu_percent >= 80 ? 'bg-rose-500' : p.cpu_percent >= 40 ? 'bg-amber-500' : 'bg-emerald-500'}`}
                                   style={{ width: `${Math.min(100, p.cpu_percent)}%` }}
+                                />
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3 font-semibold text-sky-600">
+                            <div className="flex items-center gap-2">
+                              <span>{(p.gpu_percent ?? 0).toFixed(1)}%</span>
+                              <div className="w-10 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full ${(p.gpu_percent || 0) >= 80 ? 'bg-rose-500' : (p.gpu_percent || 0) >= 40 ? 'bg-amber-500' : 'bg-sky-500'}`}
+                                  style={{ width: `${Math.min(100, p.gpu_percent || 0)}%` }}
                                 />
                               </div>
                             </div>

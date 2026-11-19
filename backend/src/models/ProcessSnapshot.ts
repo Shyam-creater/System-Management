@@ -10,6 +10,7 @@ export interface IProcessItem {
   state: string;
   cpu_percent: number;
   memory_mb: number;
+  gpu_percent?: number;
 }
 
 export interface IProcessSnapshot extends Document {
@@ -27,6 +28,7 @@ const ProcessItemSchema = new Schema<IProcessItem>({
   category: { type: String, default: 'Background Process' },
   state: { type: String, default: 'SLEEPING' },
   cpu_percent: { type: Number, default: 0 },
+  gpu_percent: { type: Number, default: 0 },
   memory_mb: { type: Number, default: 0 }
 }, { _id: false });
 

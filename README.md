@@ -33,7 +33,7 @@ Reflecting the streamlined layout and the College Lab Management Extension:
      * Target workstation dropdown filter (inspect "All Workstations" across the lab or drill into an individual node).
      * Instant real-time search input for process name, PID, or user.
      * Category filter pills (`All`, `User Applications`, `System Daemons`).
-     * Comprehensive telemetry table showing PID, workstation name, seat number, process name with vector icon, user, category badge, CPU % with mini progress bar, memory RSS allocation, and execution state.
+     * Comprehensive telemetry table showing PID, workstation name, seat number, process name with vector icon, user, category badge, CPU % with mini progress bar, **GPU %** utilization with sky-blue percentage indicators and progress bars, memory RSS allocation, and execution state.
    * **`Daily Reports`**: Daily performance and hardware audit reports scoped specifically to the workstations in that lab:
      * Full hardware telemetry tracking with **`Avg GPU`** and **`Peak GPU`** columns alongside `Avg CPU`, `Peak CPU`, `Avg Memory`, `Peak Memory`, and `Uptime`.
      * Instant on-demand report generation (`Generate Daily Report`) with automatic fallback to live hardware metrics.

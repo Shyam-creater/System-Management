@@ -539,6 +539,7 @@ export const Dashboard: React.FC = () => {
                     <th className="pb-2.5">PID</th>
                     <th className="pb-2.5">Process Name</th>
                     <th className="pb-2.5">CPU %</th>
+                    <th className="pb-2.5">GPU %</th>
                     <th className="pb-2.5">Memory (RSS)</th>
                     <th className="pb-2.5 text-right">Status</th>
                   </tr>
@@ -558,6 +559,7 @@ export const Dashboard: React.FC = () => {
                           <span className="truncate max-w-[120px] font-semibold">{proc.name}</span>
                         </td>
                         <td className="py-2.5 font-semibold text-slate-800">{(proc.cpu_percent || 0).toFixed(1)}%</td>
+                        <td className="py-2.5 font-semibold text-sky-600 font-mono">{(proc.gpu_percent ?? 0).toFixed(1)}%</td>
                         <td className="py-2.5 text-slate-600">{memDisplay}</td>
                         <td className="py-2.5 text-right font-sans">
                           <span
@@ -829,6 +831,7 @@ export const Dashboard: React.FC = () => {
                         <th className="p-3">Name</th>
                         <th className="p-3">User</th>
                         <th className="p-3">CPU %</th>
+                        <th className="p-3">GPU %</th>
                         <th className="p-3">Memory (MB)</th>
                         <th className="p-3">State</th>
                       </tr>
@@ -840,6 +843,7 @@ export const Dashboard: React.FC = () => {
                           <td className="p-3 font-sans font-medium text-slate-800">{p.name}</td>
                           <td className="p-3 text-slate-500">{p.user}</td>
                           <td className="p-3 font-semibold text-slate-800">{p.cpu_percent}%</td>
+                          <td className="p-3 font-semibold text-sky-600">{(p.gpu_percent ?? 0).toFixed(1)}%</td>
                           <td className="p-3 text-slate-600">{p.memory_mb.toFixed(1)} MB</td>
                           <td className="p-3">
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">

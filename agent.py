@@ -311,6 +311,7 @@ def get_processes():
                             "category": "Application" if is_user_app else "Background Process",
                             "state": state_desc,
                             "cpu_percent": cpu,
+                            "gpu_percent": 0.0,
                             "memory_mb": mem_mb
                         })
                     except Exception:
@@ -341,6 +342,7 @@ def get_processes():
                         "category": "Application" if is_user_app else "Background Process",
                         "state": "RUNNING" if info.get('status') == 'running' else "SLEEPING",
                         "cpu_percent": round(cpu, 1),
+                        "gpu_percent": 0.0,
                         "memory_mb": round(rss, 1)
                     })
                 except Exception:

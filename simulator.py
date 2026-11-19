@@ -199,6 +199,7 @@ def generate_telemetry(config, tick, key):
         pid = pid_base + i * 42
         p_cpu = max(0.1, round(t["cpu_base"] + random.uniform(-2.0, 2.0), 1))
         p_mem = max(5.0, round(t["mem_base"] + random.uniform(-10.0, 15.0), 1))
+        p_gpu = max(0.0, round(random.uniform(0.5, 8.5), 1)) if any(k in t["name"].lower() for k in ("chrome", "python", "code", "cuda", "torch", "render")) else 0.0
         is_user = (t["user"] not in ("root", "SYSTEM", "redis", "syslog"))
         processes.append({
             "pid": pid,
@@ -209,6 +210,7 @@ def generate_telemetry(config, tick, key):
             "category": "Application" if is_user else "Background Process",
             "state": t["state"],
             "cpu_percent": p_cpu,
+            "gpu_percent": p_gpu,
             "memory_mb": p_mem
         })
 
