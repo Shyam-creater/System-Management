@@ -19,6 +19,7 @@ import { fleetApi, sshApi } from '../services/api';
 import { NodeInfo } from '../types';
 import { AddComputerModal } from '../components/modals/AddComputerModal';
 import { PageHeader } from '../components/layout/PageHeader';
+import { PlatformIcon } from '../components/common/PlatformIcon';
 
 export const Devices: React.FC = () => {
   const queryClient = useQueryClient();
@@ -165,15 +166,13 @@ export const Devices: React.FC = () => {
                   return (
                     <tr key={node.node_id} className="hover:bg-slate-50/60 transition">
                       <td className="p-4 font-bold text-slate-900 flex items-center gap-2.5">
-                        {isSSH ? (
-                          <div className="w-7 h-7 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center font-bold">
-                            SSH
-                          </div>
-                        ) : (
-                          <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-                            🖥
-                          </div>
-                        )}
+                        <div className="w-8 h-8 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-center shrink-0 shadow-sm">
+                          {isSSH ? (
+                            <span className="text-[10px] font-mono font-bold text-sky-600">SSH</span>
+                          ) : (
+                            <PlatformIcon hostname={node.hostname} isSimulated={node.is_simulated} size={18} />
+                          )}
+                        </div>
                         <div>
                           <span>{node.hostname}</span>
                           <span className="block text-[10px] font-normal text-slate-400">{node.interface || 'Ethernet'}</span>

@@ -4,6 +4,7 @@ import { Layers, Search, Filter, Cpu, HardDrive, User, CheckCircle2 } from 'luci
 import { fleetApi } from '../services/api';
 import { ProcessItem } from '../types';
 import { PageHeader } from '../components/layout/PageHeader';
+import { ProcessIcon } from '../components/common/ProcessIcon';
 
 export const Processes: React.FC = () => {
   const [selectedNodeId, setSelectedNodeId] = useState<string>('');
@@ -33,16 +34,6 @@ export const Processes: React.FC = () => {
 
     return matchesSearch && matchesCategory;
   });
-
-  // App icon helper
-  const getProcessIcon = (name: string) => {
-    const lower = name.toLowerCase();
-    if (lower.includes('code') || lower.includes('vs')) return '⌘';
-    if (lower.includes('chrome') || lower.includes('edge') || lower.includes('firefox')) return '◎';
-    if (lower.includes('node')) return '⬢';
-    if (lower.includes('python')) return '🐍';
-    return '⚙';
-  };
 
   return (
     <div className="space-y-6">
@@ -147,11 +138,9 @@ export const Processes: React.FC = () => {
                   return (
                     <tr key={proc.pid} className="hover:bg-slate-50/60 transition">
                       <td className="p-4 text-slate-400 font-semibold">{proc.pid}</td>
-                      <td className="p-4 font-sans font-medium text-slate-900 flex items-center gap-2">
-                        <span className="w-5 h-5 rounded bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-[10px]">
-                          {getProcessIcon(proc.name)}
-                        </span>
-                        <span>{proc.name}</span>
+                      <td className="p-4 font-sans font-medium text-slate-900 flex items-center gap-2.5">
+                        <ProcessIcon name={proc.name} size={18} />
+                        <span className="font-semibold">{proc.name}</span>
                       </td>
                       <td className="p-4 text-slate-500 font-sans">{proc.user}</td>
                       <td className="p-4 font-semibold text-slate-900">{proc.cpu_percent.toFixed(1)}%</td>

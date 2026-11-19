@@ -25,8 +25,19 @@ The entire frontend has been redesigned to deliver a light-mode aesthetic matchi
 Reflecting the streamlined layout and the College Lab Management Extension:
 1. **`Dashboard` (`/`)**: Comprehensive real-time dashboard powered 100% by live backend telemetry without mock data — displaying live host CPU load, real RAM allocation, live process count, active alert feeds, dynamic historical AreaCharts, Donut resource distribution, top monitored processes with vector brand icons, connected workstations with lab badges & active student tags, and true host system hardware specifications.
 2. **`Computer Labs` (`/labs`)**: Department lab allocation hub containing dedicated sub-sections for each individual computer lab room:
-   * **`Live Seat Map`**: Real-time visual seat map (Green = Available, Blue = In Use by student, Grey = Offline), with direct desktop shortcut buttons (`Reports`, `Software`) to jump straight to that workstation's telemetry or application inventory, and lab-scoped `+ Add Node` support.
-   * **`Daily Reports`**: Daily performance and hardware audit reports scoped specifically to the workstations in that lab, featuring instant on-demand report generation, workstation filters, and Excel (`.xlsx`) / CSV export downloads.
+   * **`Live Seat Map`**: Real-time visual workstation grid with rich **graph-style cards** matching the reference implementation:
+     * **Dynamic Progress Bar Graphs**: Real-time progress bars with percentage badges for **CPU Utilization**, **GPU Utilization** (with hardware model identification, e.g. NVIDIA RTX A4000), **RAM Usage** (used / total GB and percentage), and **Storage** (used / total GB and percentage).
+     * **Workstation Status & Badges**: Prominent health status pills (`HEALTHY`, `WARNING`, `CRITICAL`, `OFFLINE`), system classification tags (`★ REAL SYSTEM`, `★ SSH AGENTLESS`, `SIMULATED VM`), IP and hardware MAC details, and editable seat numbers.
+     * **Instant Workstation Shortcuts**: One-click action buttons on every card to launch **Processes**, **Reports**, **Software**, and direct **Excel** telemetry export (`.csv` / `.xlsx`).
+   * **`Processes`**: Fleet-wide process supervision and thread tracking integrated directly into each lab room:
+     * Target workstation dropdown filter (inspect "All Workstations" across the lab or drill into an individual node).
+     * Instant real-time search input for process name, PID, or user.
+     * Category filter pills (`All`, `User Applications`, `System Daemons`).
+     * Comprehensive telemetry table showing PID, workstation name, seat number, process name with vector icon, user, category badge, CPU % with mini progress bar, memory RSS allocation, and execution state.
+   * **`Daily Reports`**: Daily performance and hardware audit reports scoped specifically to the workstations in that lab:
+     * Full hardware telemetry tracking with **`Avg GPU`** and **`Peak GPU`** columns alongside `Avg CPU`, `Peak CPU`, `Avg Memory`, `Peak Memory`, and `Uptime`.
+     * Instant on-demand report generation (`Generate Daily Report`) with automatic fallback to live hardware metrics.
+     * Dedicated Excel (`.xlsx`) and CSV streaming download buttons.
    * **`Software Inventory`**: Deep application inventory scoped per lab workstation, with search filtering, category pills (`All`, `Desktop Apps`, `Development`, `System`, `Snap`), "Rescan Workstation" trigger, and Excel (`.xlsx`) / CSV exports.
    * **`Schedules`**: Time-based lab schedules for automated end-of-day shutdowns, screen locks, or class reminder announcements.
 

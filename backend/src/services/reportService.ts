@@ -17,7 +17,41 @@ export class ReportService {
 
     for (const d of devices) {
       const records = await telemetryRepository.findHistory(d.node_id, startOfDay, 1000);
-      if (records.length === 0) continue;
+      if (records.length === 0) {
+        // Fallback to current device live metrics if no telemetry history stored today
+        const curCpu = Math.round((d.cpu_percent || 0) * 10) / 10;
+        const curRam = Math.round((d.ram_percent || 0) * 10) / 10;
+        const curDisk = Math.round((d.disk_percent || 0) * 10) / 10;
+        const curGpu = Math.round((d.gpu_percent || 0) * 10) / 10;
+        const alerts = await alertRepository.findRecent(d.node_id, 50);
+
+        const report = await reportRepository.saveReport({
+          node_id: d.node_id,
+          report_date: todayStr,
+          hostname: d.hostname,
+          is_simulated: d.is_simulated,
+          avg_cpu: curCpu,
+          max_cpu: curCpu,
+          avg_ram: curRam,
+          max_ram: curRam,
+          avg_disk: curDisk,
+          max_disk: curDisk,
+          avg_gpu: curGpu,
+          max_gpu: curGpu,
+          uptime_percent: 100,
+          samples_count: 1,
+          alerts_count: alerts.length,
+          generated_at: Date.now() / 1000,
+          summary: {
+            hostname: d.hostname,
+            ip: d.ip,
+            system_type: d.system_type,
+            recent_alerts: alerts.map(a => a.message)
+          }
+        });
+        generatedReports.push(report);
+        continue;
+      }
 
       let totalCpu = 0;
       let maxCpu = 0;

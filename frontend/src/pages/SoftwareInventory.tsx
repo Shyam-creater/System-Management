@@ -253,9 +253,9 @@ export const SoftwareInventory: React.FC = () => {
                     displayed.map((pkg, i) => (
                       <tr key={i} className="hover:bg-slate-50/60 transition">
                         <td className="p-4 font-bold text-slate-900 flex items-center gap-2">
-                          <span className="w-6 h-6 rounded bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs">
-                            📦
-                          </span>
+                          <div className="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                            <Package className="w-3.5 h-3.5" />
+                          </div>
                           <span className="truncate max-w-[220px]">{pkg.name}</span>
                         </td>
                         <td className="p-4 font-mono text-slate-600 font-semibold">{pkg.version || 'Latest'}</td>

@@ -181,7 +181,8 @@ export const Reports: React.FC = () => {
           <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-wrap items-center justify-between gap-4">
             <div>
               <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
-                <span>🏛️</span> {selectedLabObj.name} Utilization & Peak-Hours Audit
+                <Building className="w-5 h-5 text-blue-600" />
+                <span>{selectedLabObj.name} Utilization & Peak-Hours Audit</span>
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
                 Weekly aggregated student occupancy, hours, unique users, and peak usage patterns
@@ -306,7 +307,8 @@ export const Reports: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm space-y-2">
               <span className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
-                <span>🔥</span> Most Utilized Desktops
+                <Flame className="w-4 h-4 text-emerald-600" />
+                <span>Most Utilized Desktops</span>
               </span>
               <div className="space-y-1.5">
                 {mostUsedMachines.map(m => (
@@ -320,7 +322,8 @@ export const Reports: React.FC = () => {
 
             <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm space-y-2">
               <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5">
-                <span>💤</span> Least Utilized Desktops
+                <Clock className="w-4 h-4 text-slate-400" />
+                <span>Least Utilized Desktops</span>
               </span>
               <div className="space-y-1.5">
                 {leastUsedMachines.map(m => (
@@ -374,10 +377,14 @@ export const Reports: React.FC = () => {
                   <p className="text-xs text-slate-500 font-mono mt-0.5">{node.ip}</p>
                 </div>
 
-                <div className="pt-3 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs font-mono">
+                <div className="pt-3 border-t border-slate-100 grid grid-cols-3 gap-2 text-xs font-mono">
                   <div>
                     <span className="text-slate-400 block text-[10px]">CURRENT CPU</span>
                     <span className="font-bold text-slate-800">{node.cpu_percent?.toFixed(1) || '0.0'}%</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">CURRENT GPU</span>
+                    <span className="font-bold text-sky-600">{node.gpu_percent?.toFixed(1) || '0.0'}%</span>
                   </div>
                   <div>
                     <span className="text-slate-400 block text-[10px]">CURRENT RAM</span>
@@ -410,6 +417,8 @@ export const Reports: React.FC = () => {
                     <th className="p-4">Report Date</th>
                     <th className="p-4">Average CPU</th>
                     <th className="p-4">Peak CPU</th>
+                    <th className="p-4">Average GPU</th>
+                    <th className="p-4">Peak GPU</th>
                     <th className="p-4">Average RAM</th>
                     <th className="p-4">Peak RAM</th>
                     <th className="p-4">Uptime %</th>
@@ -419,7 +428,7 @@ export const Reports: React.FC = () => {
                 <tbody className="divide-y divide-slate-100 text-slate-700">
                   {filteredReports.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="p-12 text-center text-slate-400 font-sans">
+                      <td colSpan={9} className="p-12 text-center text-slate-400 font-sans">
                         No historical daily reports generated for this workstation yet.
                         Click "Generate Daily Report" above.
                       </td>
@@ -433,6 +442,8 @@ export const Reports: React.FC = () => {
                         </td>
                         <td className="p-4 font-semibold text-slate-800">{r.avg_cpu?.toFixed(1)}%</td>
                         <td className="p-4 font-semibold text-rose-600">{r.max_cpu?.toFixed(1)}%</td>
+                        <td className="p-4 font-semibold text-sky-600">{(r.avg_gpu ?? 0).toFixed(1)}%</td>
+                        <td className="p-4 font-semibold text-purple-600">{(r.max_gpu ?? 0).toFixed(1)}%</td>
                         <td className="p-4 font-semibold text-slate-800">{r.avg_ram?.toFixed(1)}%</td>
                         <td className="p-4 font-semibold text-amber-600">{r.max_ram?.toFixed(1)}%</td>
                         <td className="p-4">

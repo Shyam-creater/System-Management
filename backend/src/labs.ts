@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import mongoose, { Schema, Document } from 'mongoose';
 import { isDatabaseConnected } from './config/database.js';
 import { deviceRepository } from './repositories/deviceRepository.js';
+import { processRepository } from './repositories/processRepository.js';
 import { io } from './sockets/socketHandler.js';
 import { logger } from './utils/logger.js';
 
@@ -510,24 +511,42 @@ labsRouter.get('/labs/:id/overview', async (req: Request, res: Response) => {
   const labNodes = allNodes.filter(n => n.labId === labId);
   const nowSec = Date.now() / 1000;
 
-  const machines = labNodes.map(n => {
+  const machines = await Promise.all(labNodes.map(async (n: any) => {
+    const rawObj = n.toObject ? n.toObject() : n;
     const secondsSinceSeen = Math.round((nowSec - (n.last_seen || 0)) * 10) / 10;
-    const isOnline = (secondsSinceSeen <= 15.0);
+    const isOnline = n.is_ssh_agentless ? (n.status === 'ONLINE') : (secondsSinceSeen <= 15.0);
+    const snapshot = await processRepository.getLatestSnapshot(n.node_id);
 
     return {
+      ...rawObj,
       node_id: n.node_id,
       hostname: n.hostname,
       ip: n.ip,
+      mac: n.mac || null,
+      interface: n.interface || null,
       isOnline,
+      status: isOnline ? 'ONLINE' : 'OFFLINE',
+      health: n.health || (isOnline ? 'HEALTHY' : 'OFFLINE'),
+      health_reasons: n.health_reasons || [],
+      is_ssh_agentless: Boolean(n.is_ssh_agentless),
+      is_simulated: Boolean(n.is_simulated),
       cpu_percent: n.cpu_percent || 0,
+      gpu_percent: n.gpu_percent || 0,
+      gpu_name: n.gpu_name || undefined,
       ram_percent: n.ram_percent || 0,
+      ram_used_gb: n.ram_used_gb || 0,
+      ram_total_gb: n.ram_total_gb || 0,
+      disk_percent: n.disk_percent || 0,
+      disk_used_gb: n.disk_used_gb || 0,
+      disk_total_gb: n.disk_total_gb || 0,
+      process_count: n.process_count || (snapshot?.processes?.length || 0),
+      processes: snapshot?.processes || [],
       seat: n.seat || null,
       currentUser: n.currentUser || null,
       system_type: n.system_type || 'Unknown',
-      is_simulated: Boolean(n.is_simulated),
       secondsSinceSeen
     };
-  });
+  }));
 
   // Sort by seat number, then hostname
   machines.sort((a, b) => {

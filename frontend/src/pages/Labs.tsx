@@ -40,9 +40,12 @@ import {
   Flame,
   Zap,
   Layers,
-  User
+  User,
+  Cpu,
+  HardDrive
 } from 'lucide-react';
 import { PlatformIcon } from '../components/common/PlatformIcon';
+import { ProcessIcon } from '../components/common/ProcessIcon';
 import {
   AreaChart,
   Area,
@@ -73,7 +76,8 @@ import {
   ViolationItem,
   ScheduleItem,
   DailyReportItem,
-  SoftwareItem
+  SoftwareItem,
+  ProcessItem
 } from '../types';
 
 export const Labs: React.FC = () => {
@@ -81,9 +85,13 @@ export const Labs: React.FC = () => {
 
   // Selected lab & active sub-tab
   const [selectedLabId, setSelectedLabId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'seatmap' | 'reports' | 'software' | 'schedules'>('seatmap');
+  const [activeTab, setActiveTab] = useState<'seatmap' | 'processes' | 'reports' | 'software' | 'schedules'>('seatmap');
 
   // Sub-view specific filters & selectors for lab systems
+  const [selectedProcessNodeId, setSelectedProcessNodeId] = useState<string | null>(null);
+  const [processSearchQuery, setProcessSearchQuery] = useState('');
+  const [processCategoryFilter, setProcessCategoryFilter] = useState<'ALL' | 'APP' | 'DAEMON'>('ALL');
+
   const [selectedReportNodeId, setSelectedReportNodeId] = useState<string | null>(null);
   const [selectedSoftwareNodeId, setSelectedSoftwareNodeId] = useState<string | null>(null);
   const [softwareSearchQuery, setSoftwareSearchQuery] = useState('');
@@ -412,6 +420,43 @@ export const Labs: React.FC = () => {
     ? labReports.filter(r => r.node_id === selectedReportNodeId)
     : labReports;
 
+  // Computed Processes for the active lab
+  const effectiveProcessNodeId = selectedProcessNodeId || 'ALL';
+  const labProcesses: (ProcessItem & { hostname?: string; seat?: number | null; node_id?: string })[] = [];
+
+  machines.forEach((m) => {
+    if (effectiveProcessNodeId === 'ALL' || effectiveProcessNodeId === m.node_id) {
+      (m.processes || []).forEach((p) => {
+        labProcesses.push({
+          ...p,
+          hostname: m.hostname,
+          seat: m.seat,
+          node_id: m.node_id
+        });
+      });
+    }
+  });
+
+  const displayProcesses = labProcesses.filter((p) => {
+    const matchesSearch =
+      p.name.toLowerCase().includes(processSearchQuery.toLowerCase()) ||
+      p.pid.toString().includes(processSearchQuery) ||
+      (p.user && p.user.toLowerCase().includes(processSearchQuery.toLowerCase()));
+
+    const matchesCategory =
+      processCategoryFilter === 'ALL' ||
+      (processCategoryFilter === 'APP' && p.is_user_app) ||
+      (processCategoryFilter === 'DAEMON' && !p.is_user_app);
+
+    return matchesSearch && matchesCategory;
+  });
+
+  const getProgressBarColor = (pct: number) => {
+    if (pct >= 85) return 'bg-rose-500';
+    if (pct >= 70) return 'bg-amber-500';
+    return 'bg-emerald-500';
+  };
+
   const usageDays = labUsageData?.days || [];
   const totalSessions7d = usageDays.reduce((acc: number, d: any) => acc + (d.sessions || 0), 0);
   const totalHours7d = usageDays.reduce((acc: number, d: any) => acc + (d.hours || 0), 0);
@@ -589,6 +634,17 @@ export const Labs: React.FC = () => {
               <span>Live Seat Map</span>
             </button>
             <button
+              onClick={() => setActiveTab('processes')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 ${
+                activeTab === 'processes'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              }`}
+            >
+              <Cpu className="w-3.5 h-3.5" />
+              <span>Processes</span>
+            </button>
+            <button
               onClick={() => setActiveTab('reports')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 ${
                 activeTab === 'reports'
@@ -718,26 +774,50 @@ export const Labs: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
               {machines.map((node, idx) => {
                 const hasUser = Boolean(node.currentUser);
                 const isOnline = node.isOnline;
                 const seatNumber = node.seat ?? (idx + 1);
 
+                const cpuPct = Math.min(100, Math.max(0, node.cpu_percent || 0));
+                const gpuPct = Math.min(100, Math.max(0, node.gpu_percent || 0));
+                const ramPct = Math.min(100, Math.max(0, node.ram_percent || 0));
+                const diskPct = Math.min(100, Math.max(0, node.disk_percent || 0));
+
+                const isReal = !node.is_simulated;
+                const isSSH = Boolean(node.is_ssh_agentless);
+
+                const ramUsed = (node.ram_used_gb && node.ram_used_gb > 0)
+                  ? node.ram_used_gb
+                  : (ramPct * 16 / 100);
+                const ramTotal = (node.ram_total_gb && node.ram_total_gb > 0)
+                  ? node.ram_total_gb
+                  : 16;
+
+                const diskUsed = (node.disk_used_gb && node.disk_used_gb > 0)
+                  ? node.disk_used_gb
+                  : (diskPct * 512 / 100);
+                const diskTotal = (node.disk_total_gb && node.disk_total_gb > 0)
+                  ? node.disk_total_gb
+                  : 512;
+
                 return (
                   <div
                     key={node.node_id}
-                    className={`p-3.5 rounded-2xl border transition-all relative flex flex-col justify-between select-none ${
+                    className={`p-4 rounded-2xl border transition-all duration-200 relative flex flex-col justify-between bg-white shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_24px_rgba(29,104,255,0.08)] ${
                       hasUser
-                        ? 'bg-blue-50/70 border-blue-400 shadow-[0_4px_14px_rgba(29,104,255,0.15)] ring-2 ring-blue-500/20'
-                        : isOnline
-                        ? 'bg-white border-emerald-300/80 hover:border-emerald-400 shadow-sm hover:shadow-md'
-                        : 'bg-slate-50/80 border-slate-200 text-slate-400'
+                        ? 'border-blue-400 ring-2 ring-blue-500/20'
+                        : isSSH
+                        ? 'border-sky-300/80 hover:border-sky-400'
+                        : isReal
+                        ? 'border-emerald-300/80 hover:border-emerald-400'
+                        : 'border-purple-300/80 hover:border-purple-400'
                     }`}
                   >
                     <div>
-                      {/* Top Bar: Seat Number + Status Tag */}
-                      <div className="flex items-center justify-between gap-1 mb-2">
+                      {/* Top Row: Seat & Health Pill */}
+                      <div className="flex items-center justify-between gap-2 mb-2.5">
                         <button
                           onClick={() => {
                             setSeatEditNodeId(node.node_id);
@@ -750,58 +830,175 @@ export const Labs: React.FC = () => {
                           <Edit className="w-2.5 h-2.5 opacity-60" />
                         </button>
 
-                        <span
-                          className={`w-2.5 h-2.5 rounded-full ${
-                            hasUser
-                              ? 'bg-blue-500 ring-2 ring-blue-200 animate-pulse'
-                              : isOnline
-                              ? 'bg-emerald-500'
-                              : 'bg-slate-300'
-                          }`}
-                        />
+                        <div className="flex items-center gap-1.5">
+                          {!isOnline ? (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200 flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                              OFFLINE
+                            </span>
+                          ) : node.health === 'CRITICAL' ? (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                              CRITICAL
+                            </span>
+                          ) : node.health === 'WARNING' ? (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                              WARNING
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                              HEALTHY
+                            </span>
+                          )}
+                        </div>
                       </div>
 
-                      {/* Computer Hostname & IP */}
-                      <div className="flex items-center gap-2.5 mb-2">
-                        <div className="w-8 h-8 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-center shrink-0 shadow-sm">
+                      {/* Computer Hostname, Badge & Platform */}
+                      <div className="flex items-start gap-2.5 mb-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-center shrink-0 shadow-sm mt-0.5">
                           <PlatformIcon hostname={node.hostname} isSimulated={node.is_simulated} size={18} />
                         </div>
-                        <div className="min-w-0">
-                          <h4 className="text-xs font-bold text-slate-900 truncate" title={node.hostname}>
-                            {node.hostname}
-                          </h4>
-                          <p className="text-[10px] text-slate-400 font-mono truncate">{node.ip}</p>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <h4 className="text-sm font-bold text-slate-900 truncate" title={node.hostname}>
+                              {node.hostname}
+                            </h4>
+                            {isSSH ? (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-sky-50 text-sky-700 border border-sky-200">
+                                ★ SSH AGENTLESS
+                              </span>
+                            ) : isReal ? (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                ★ REAL SYSTEM
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                                SIMULATED VM
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-500 font-mono truncate mt-0.5">
+                            <span>🌐 IP: <strong>{node.ip}</strong>{node.interface ? ` [${node.interface}]` : ''}</span>
+                            {node.mac && <span className="ml-1 text-slate-400">| MAC: {node.mac}</span>}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Active Student Banner if in use */}
+                      {hasUser && (
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-blue-50/80 border border-blue-200 text-blue-700 font-bold text-xs truncate mb-3">
+                          <Users className="w-3.5 h-3.5 shrink-0 text-blue-600" />
+                          <span className="truncate">{node.currentUser}</span>
+                        </div>
+                      )}
+
+                      {/* Metrics Graph Stack (CPU, GPU, RAM, Storage) */}
+                      <div className="space-y-2 py-2 border-t border-b border-slate-100 my-2">
+                        {/* CPU Utilization */}
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-xs font-semibold">
+                            <span className="text-slate-600 flex items-center gap-1">
+                              <Cpu className="w-3.5 h-3.5 text-slate-400" />
+                              <span>CPU Utilization</span>
+                            </span>
+                            <span className="font-mono font-bold text-slate-800">{cpuPct.toFixed(1)}%</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-300 ${getProgressBarColor(cpuPct)}`}
+                              style={{ width: `${cpuPct}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* GPU Utilization */}
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-xs font-semibold">
+                            <span className="text-slate-600 flex items-center gap-1 truncate max-w-[180px]" title={node.gpu_name}>
+                              <Zap className="w-3.5 h-3.5 text-sky-500" />
+                              <span className="truncate">GPU {node.gpu_name ? `(${node.gpu_name})` : 'Utilization'}</span>
+                            </span>
+                            <span className="font-mono font-bold text-sky-600">{gpuPct.toFixed(1)}%</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-300 ${
+                                gpuPct >= 85 ? 'bg-rose-500' : gpuPct >= 70 ? 'bg-amber-500' : 'bg-sky-500'
+                              }`}
+                              style={{ width: `${gpuPct}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* RAM Usage */}
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-xs font-semibold">
+                            <span className="text-slate-600 flex items-center gap-1">
+                              <Layers className="w-3.5 h-3.5 text-slate-400" />
+                              <span>RAM ({ramUsed.toFixed(1)} / {ramTotal.toFixed(1)} GB)</span>
+                            </span>
+                            <span className="font-mono font-bold text-indigo-600">{ramPct.toFixed(1)}%</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-300 ${
+                                ramPct >= 90 ? 'bg-rose-500' : ramPct >= 75 ? 'bg-amber-500' : 'bg-blue-600'
+                              }`}
+                              style={{ width: `${ramPct}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Storage Usage */}
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-xs font-semibold">
+                            <span className="text-slate-600 flex items-center gap-1">
+                              <HardDrive className="w-3.5 h-3.5 text-slate-400" />
+                              <span>Storage ({diskUsed.toFixed(1)} / {diskTotal.toFixed(1)} GB)</span>
+                            </span>
+                            <span className="font-mono font-bold text-slate-700">{diskPct.toFixed(1)}%</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-300 ${
+                                diskPct >= 90 ? 'bg-rose-500' : diskPct >= 80 ? 'bg-amber-500' : 'bg-slate-500'
+                              }`}
+                              style={{ width: `${diskPct}%` }}
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Active Student Status or Idle State */}
-                    <div className="pt-2 border-t border-slate-100/80 mt-1">
-                      {hasUser ? (
-                        <div className="flex items-center gap-1.5 text-blue-700 font-bold text-xs truncate mb-2">
-                          <Users className="w-3.5 h-3.5 shrink-0" />
-                          <span className="truncate" title={node.currentUser || ''}>
-                            {node.currentUser}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono mb-2">
-                          <span>{isOnline ? 'Available' : 'Offline'}</span>
-                          {isOnline && (
-                            <span>{node.cpu_percent?.toFixed(0) || '0'}% CPU</span>
-                          )}
-                        </div>
-                      )}
+                    {/* Footer: Process Count + Action Buttons */}
+                    <div className="pt-2 space-y-2">
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 font-mono">
+                        <span>⚙️ {node.process_count || (node.processes ? node.processes.length : 0)} processes</span>
+                        {node.system_type && <span className="text-slate-400 font-sans truncate">{node.system_type}</span>}
+                      </div>
 
-                      {/* Workstation Direct Action Shortcuts */}
-                      <div className="grid grid-cols-2 gap-1.5 pt-1.5 border-t border-slate-100/60">
+                      <div className="grid grid-cols-4 gap-1.5">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedProcessNodeId(node.node_id);
+                            setActiveTab('processes');
+                          }}
+                          className="px-1.5 py-1.5 rounded-lg bg-blue-50/90 hover:bg-blue-100 text-blue-600 text-[10px] font-bold flex items-center justify-center gap-1 transition"
+                          title="Monitor Workstation Processes"
+                        >
+                          <Cpu className="w-3 h-3" />
+                          <span>Processes</span>
+                        </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedReportNodeId(node.node_id);
                             setActiveTab('reports');
                           }}
-                          className="px-1.5 py-1 rounded-lg bg-blue-50/80 hover:bg-blue-100 text-blue-600 text-[10px] font-semibold flex items-center justify-center gap-1 transition"
+                          className="px-1.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center justify-center gap-1 transition"
                           title="View Workstation Daily Reports"
                         >
                           <BarChart3 className="w-3 h-3" />
@@ -813,12 +1010,22 @@ export const Labs: React.FC = () => {
                             setSelectedSoftwareNodeId(node.node_id);
                             setActiveTab('software');
                           }}
-                          className="px-1.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200/80 text-slate-700 text-[10px] font-semibold flex items-center justify-center gap-1 transition"
-                          title="View Workstation Software Inventory"
+                          className="px-1.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center justify-center gap-1 transition"
+                          title="View Installed Software Inventory"
                         >
                           <Package className="w-3 h-3" />
                           <span>Software</span>
                         </button>
+                        <a
+                          href={`/api/export/excel?type=telemetry&node_id=${encodeURIComponent(node.node_id)}`}
+                          download
+                          onClick={(e) => e.stopPropagation()}
+                          className="px-1.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 text-[10px] font-bold flex items-center justify-center gap-1 transition shadow-sm"
+                          title="Download Excel Telemetry"
+                        >
+                          <FileSpreadsheet className="w-3 h-3" />
+                          <span>Excel</span>
+                        </a>
                       </div>
                     </div>
                   </div>
@@ -826,6 +1033,170 @@ export const Labs: React.FC = () => {
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* 4. MAIN CONTENT AREA: TAB - PROCESSES SUPERVISION */}
+      {activeTab === 'processes' && currentLab && (
+        <div className="space-y-6">
+          {/* Header Bar */}
+          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Cpu className="w-5 h-5 text-blue-600" />
+                <span>Workstation Processes — {currentLab.name}</span>
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Fleet-wide process monitoring, PID resource consumption, and thread execution tracking for {currentLab.name}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Workstation Target Selector */}
+              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/80 rounded-xl px-2.5 py-1.5">
+                <Monitor className="w-3.5 h-3.5 text-slate-500" />
+                <select
+                  value={effectiveProcessNodeId}
+                  onChange={(e) => setSelectedProcessNodeId(e.target.value)}
+                  className="bg-transparent text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer"
+                >
+                  <option value="ALL">All Workstations in {currentLab.name} ({machines.length})</option>
+                  {machines.map((m) => (
+                    <option key={m.node_id} value={m.node_id}>
+                      {m.hostname} (Seat #{m.seat ?? '—'}) {m.isOnline ? '● Online' : '○ Offline'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Search Bar */}
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-1.5 w-60">
+                <Search className="w-3.5 h-3.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Filter name, PID, user..."
+                  value={processSearchQuery}
+                  onChange={(e) => setProcessSearchQuery(e.target.value)}
+                  className="bg-transparent text-xs text-slate-800 placeholder-slate-400 focus:outline-none w-full"
+                />
+              </div>
+
+              {/* Category Filter Pills */}
+              <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl text-xs font-semibold">
+                <button
+                  onClick={() => setProcessCategoryFilter('ALL')}
+                  className={`px-2.5 py-1 rounded-lg transition ${
+                    processCategoryFilter === 'ALL'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  All ({labProcesses.length})
+                </button>
+                <button
+                  onClick={() => setProcessCategoryFilter('APP')}
+                  className={`px-2.5 py-1 rounded-lg transition ${
+                    processCategoryFilter === 'APP'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Apps ({labProcesses.filter(p => p.is_user_app).length})
+                </button>
+                <button
+                  onClick={() => setProcessCategoryFilter('DAEMON')}
+                  className={`px-2.5 py-1 rounded-lg transition ${
+                    processCategoryFilter === 'DAEMON'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Daemons ({labProcesses.filter(p => !p.is_user_app).length})
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Process Table */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200/80">
+                  <tr>
+                    <th className="py-2.5 px-3">PID</th>
+                    <th className="py-2.5 px-3">Workstation</th>
+                    <th className="py-2.5 px-3">Process Name</th>
+                    <th className="py-2.5 px-3">User</th>
+                    <th className="py-2.5 px-3">Category</th>
+                    <th className="py-2.5 px-3">CPU %</th>
+                    <th className="py-2.5 px-3">Memory (RSS)</th>
+                    <th className="py-2.5 px-3 text-right">State</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-mono text-[11px] text-slate-700">
+                  {displayProcesses.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-12 text-center text-slate-400 font-sans">
+                        No active processes matching the selected filters.
+                      </td>
+                    </tr>
+                  ) : (
+                    displayProcesses.map((p, idx) => {
+                      const isRunning = p.state === 'RUNNING';
+                      const memDisplay = p.memory_mb >= 1024
+                        ? `${(p.memory_mb / 1024).toFixed(2)} GB`
+                        : `${Math.round(p.memory_mb)} MB`;
+
+                      return (
+                        <tr key={`${p.node_id || ''}-${p.pid}-${idx}`} className="hover:bg-slate-50/80 transition">
+                          <td className="py-2.5 px-3 text-slate-400 font-semibold">{p.pid}</td>
+                          <td className="py-2.5 px-3 font-sans">
+                            <span className="font-semibold text-blue-600">{p.hostname || 'Workstation'}</span>
+                            {p.seat && (
+                              <span className="ml-1.5 text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded">
+                                #{p.seat}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 font-sans font-medium text-slate-900 flex items-center gap-2">
+                            <ProcessIcon name={p.name} size={16} />
+                            <span className="font-semibold truncate max-w-[200px]" title={p.name}>{p.name}</span>
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-500 font-sans">{p.user}</td>
+                          <td className="py-2.5 px-3 font-sans">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                              p.is_user_app ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-slate-100 text-slate-600'
+                            }`}>
+                              {p.is_user_app ? 'Application' : 'Background'}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 font-semibold text-slate-900">
+                            <div className="flex items-center gap-2">
+                              <span>{p.cpu_percent.toFixed(1)}%</span>
+                              <div className="w-12 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full ${p.cpu_percent >= 80 ? 'bg-rose-500' : p.cpu_percent >= 40 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                                  style={{ width: `${Math.min(100, p.cpu_percent)}%` }}
+                                />
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-600">{memDisplay}</td>
+                          <td className="py-2.5 px-3 text-right font-sans">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              isRunning ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'
+                            }`}>
+                              {p.state}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 
@@ -921,6 +1292,8 @@ export const Labs: React.FC = () => {
                       <th className="py-2.5 px-3">Workstation</th>
                       <th className="py-2.5 px-3">Avg CPU</th>
                       <th className="py-2.5 px-3">Peak CPU</th>
+                      <th className="py-2.5 px-3">Avg GPU</th>
+                      <th className="py-2.5 px-3">Peak GPU</th>
                       <th className="py-2.5 px-3">Avg Memory</th>
                       <th className="py-2.5 px-3">Peak Memory</th>
                       <th className="py-2.5 px-3">Uptime</th>
@@ -946,6 +1319,8 @@ export const Labs: React.FC = () => {
                           </td>
                           <td className="py-2.5 px-3">{(r.avg_cpu ?? 0).toFixed(1)}%</td>
                           <td className="py-2.5 px-3 font-bold text-amber-600">{(r.max_cpu ?? 0).toFixed(1)}%</td>
+                          <td className="py-2.5 px-3 font-semibold text-sky-600">{(r.avg_gpu ?? 0).toFixed(1)}%</td>
+                          <td className="py-2.5 px-3 font-bold text-purple-600">{(r.max_gpu ?? 0).toFixed(1)}%</td>
                           <td className="py-2.5 px-3">{(r.avg_ram ?? 0).toFixed(1)}%</td>
                           <td className="py-2.5 px-3 font-bold text-indigo-600">{(r.max_ram ?? 0).toFixed(1)}%</td>
                           <td className="py-2.5 px-3 font-mono text-[11px] text-slate-500">

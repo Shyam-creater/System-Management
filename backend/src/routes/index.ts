@@ -40,6 +40,7 @@ router.get('/simulator/status', (req, res) => simulatorController.getStatus(req,
 router.get('/software', (req, res) => softwareController.getSoftware(req, res));
 router.post('/software/rescan', (req, res) => softwareController.rescanSoftware(req, res));
 router.get('/export/excel', (req, res) => softwareController.exportSoftware(req, res));
+router.get('/export/csv', (req, res) => softwareController.exportSoftware(req, res));
 // Compatible alias endpoints
 router.get('/software/export.xlsx', (req, res) => softwareController.exportSoftware(req, res));
 router.get('/software/export.csv', (req, res) => softwareController.exportSoftware(req, res));
