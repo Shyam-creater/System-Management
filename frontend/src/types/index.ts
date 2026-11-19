@@ -169,3 +169,67 @@ export interface LabOverviewResponse {
   online: number;
   inUse: number;
 }
+
+export type CommandType = 'shutdown' | 'restart' | 'lock' | 'logoff' | 'message' | 'cancel_shutdown';
+export type CommandStatus = 'pending' | 'sent' | 'done' | 'failed' | 'skipped';
+
+export interface CommandItem {
+  id: string;
+  _id?: string;
+  nodeId: string;
+  labId?: string | null;
+  type: CommandType;
+  payload?: { delaySec?: number; text?: string };
+  status: CommandStatus;
+  createdBy: string;
+  createdAt: string;
+  sentAt?: string | null;
+  ackAt?: string | null;
+  result?: string | null;
+}
+
+export interface PolicyItem {
+  id: string;
+  _id?: string;
+  labId?: string | null;
+  name: string;
+  mode: 'blocklist' | 'allowlist';
+  processNames: string[];
+  action: 'kill' | 'alert_only';
+  activeFrom?: string;
+  activeTo?: string;
+  days?: string[];
+  enabled: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ViolationItem {
+  id: string;
+  _id?: string;
+  nodeId: string;
+  labId?: string | null;
+  username: string;
+  processName: string;
+  action: 'killed' | 'alerted';
+  createdAt: string;
+}
+
+export interface ScheduleItem {
+  id: string;
+  _id?: string;
+  labId: string;
+  name: string;
+  type: 'shutdown' | 'message' | 'lock';
+  days: string[];
+  time: string; // "HH:MM"
+  payload?: { delaySec?: number; text?: string };
+  enabled: boolean;
+  lastRunAt?: string | null;
+  createdAt?: string;
+}
+
+export interface AuthUser {
+  username: string;
+  role: 'admin' | 'incharge' | 'viewer';
+}

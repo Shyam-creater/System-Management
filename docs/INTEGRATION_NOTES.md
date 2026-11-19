@@ -58,3 +58,50 @@ This document records the architectural inspection of ProcessShield prior to imp
   - Backend emits `session:update` on login/logout events.
   - Backend emits `command:update` on command status changes.
   - Backend emits `lab:update` on lab changes.
+
+---
+
+## 7. Implementation & Verification Status
+
+### Phase 1: Labs and Login/Logout Tracking — COMPLETED
+- [x] Lab CRUD endpoints (`GET /api/labs`, `POST /api/labs`, `GET/PUT/DELETE /api/labs/:id`).
+- [x] Machine allocation (`assign-by-prefix`, `unassigned/nodes`, batch `PUT /api/nodes/assign`, `PUT /api/nodes/:nodeId/seat`).
+- [x] Device schema extended with `labId`, `seat`, `currentUser`.
+- [x] `session_tracker.py` created with `psutil.users()` and integrated into `agent.py`.
+- [x] `simulator.py` updated with simulated student login/logout cycles.
+- [x] Live Seat Map in `frontend/src/pages/Labs.tsx` with color-coded states (Green = Idle, Blue = Active Student, Grey = Offline).
+- [x] Stale session sweeper running every 30s (`closedBy = 'agent-offline'`).
+- [x] Session history filtering and CSV export streaming (`/api/sessions/export`).
+- [x] Lab badges on Monitored Devices in Fleet Overview and Student Sessions tab in Node Inspection Modal.
+
+### Phase 2: Lab-Wide Remote Commands — COMPLETED
+- [x] Security: Admin JWT login (`/api/auth/login`, `/api/auth/me`, `/api/auth/logout`) with httpOnly cookie and Bearer token fallback.
+- [x] `X-Agent-Token` authentication for agent endpoints (`/api/report`, `/api/sessions/*`, `/api/agent/*`).
+- [x] Command model with dual-mode store (`CommandSchema` with indexes on `nodeId, status` and `labId, createdAt`).
+- [x] Endpoints: `POST /api/labs/:id/commands`, `GET /api/labs/:id/commands`, `GET /api/agent/commands/:nodeId`, `POST /api/agent/commands/:id/ack`.
+- [x] Whitelisted actions only (`shutdown`, `restart`, `lock`, `logoff`, `message`, `cancel_shutdown`). Free-form shell injection blocked.
+- [x] Input sanitization (message max 200 chars stripped of control characters).
+- [x] `command_executor.py` created with OS detection (`win32`, `linux`, `darwin`), using `subprocess.run(args, shell=False)`.
+- [x] `simulator.py` handles commands with `status = "done"`, `result = "simulated"`.
+- [x] UI Lab Actions Menu with typed lab name confirmation for shutdown/restart, and live "Recent Commands" audit panel.
+
+### Phase 3: Per-Lab Process & Software Policies — COMPLETED
+- [x] Policy model & dual-mode store (`PolicySchema`: `name`, `mode`: `blocklist|allowlist`, `processNames`, `action`: `kill|alert_only`, active hours window, active days, `enabled`).
+- [x] Core OS process protection: `explorer.exe`, `python.exe`, `systemd`, `init`, etc. cannot be terminated and are rejected upon policy creation.
+- [x] Endpoints: `GET/POST /api/policies`, `PUT/DELETE /api/policies/:id`, `GET /api/agent/policy/:nodeId`, `POST/GET /api/violations`.
+- [x] `policy_enforcer.py` created with 5s process iteration, PID deduplication, and active time-window checking.
+- [x] Violations automatically create `WARNING` alerts in the central Alerts feed and log in the Violations audit table.
+- [x] UI "Policies" tab in `Labs.tsx` with policy cards, enable/disable toggle, and live Violations feed.
+
+### Phase 4: Schedules & Per-Lab Reports — COMPLETED
+- [x] Schedule model & dual-mode store (`ScheduleSchema`: `labId`, `name`, `type`, `time`, `days`, `payload`, `enabled`, `lastRunAt`).
+- [x] 30s background ticker in backend triggering due schedules with single-run per minute guarantee (`lastRunAt`).
+- [x] Endpoints: `GET/POST /api/schedules`, `PUT/DELETE /api/schedules/:id`.
+- [x] UI "Schedules" tab in `Labs.tsx` with creation modal and enable toggle.
+- [x] Lab Utilization Reports on Daily Reports page (`/reports`): 7-day occupancy trend chart, 5x4 weekday peak-hours heatmap, most/least utilized workstations, CSV & Excel export.
+
+### Cross-Cutting & Build Verification — PASSED
+- [x] Full build check: `npx tsc -b && vite build` in `frontend/` passes with **0 errors**.
+- [x] Full build check: `npm run build` in `backend/` passes with **0 errors**.
+- [x] Data retention pruning job scheduled daily for telemetry, sessions, commands, and violations older than `PROCESSSHIELD_RETENTION_DAYS` (default 180 days).
+- [x] Complete system documentation updated in `README.md`.

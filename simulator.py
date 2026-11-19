@@ -236,6 +236,43 @@ def generate_telemetry(config, tick, key):
         "auth_key": key
     }
 
+def handle_simulated_commands(base_server, node_id, key):
+    """
+    Polls /api/agent/commands/{node_id} and immediately acks with status='done', result='simulated'.
+    """
+    import urllib.parse
+    encoded_node = urllib.parse.quote(node_id)
+    url = f"{base_server}/api/agent/commands/{encoded_node}"
+    agent_token = os.environ.get("AGENT_TOKEN", "ProcessShield-Secret-Token-2026")
+    headers = {
+        "X-Agent-Token": agent_token,
+        "X-ProcessShield-Key": key
+    }
+    try:
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+            commands = data.get("commands", [])
+            for cmd in commands:
+                cmd_id = cmd.get("_id") or cmd.get("id")
+                cmd_type = cmd.get("type")
+                print(f"[Simulator] ⚡ Received simulated command '{cmd_type}' for '{node_id}'. Acking as simulated.")
+                ack_url = f"{base_server}/api/agent/commands/{cmd_id}/ack"
+                ack_data = json.dumps({"status": "done", "result": "simulated"}).encode('utf-8')
+                ack_req = urllib.request.Request(
+                    ack_url,
+                    data=ack_data,
+                    headers={
+                        "Content-Type": "application/json",
+                        "X-Agent-Token": agent_token,
+                        "X-ProcessShield-Key": key
+                    }
+                )
+                with urllib.request.urlopen(ack_req, timeout=3) as ack_resp:
+                    pass
+    except Exception:
+        pass
+
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="ProcessShield Virtual Computers Simulator")
@@ -268,6 +305,7 @@ def main():
         for node_conf in active_nodes:
             telemetry = generate_telemetry(node_conf, tick, args.key)
             handle_simulated_sessions(base_server, telemetry['node_id'], tick, args.key)
+            handle_simulated_commands(base_server, telemetry['node_id'], args.key)
             try:
                 data = json.dumps(telemetry).encode("utf-8")
                 req = urllib.request.Request(
@@ -276,7 +314,8 @@ def main():
                     headers={
                         "Content-Type": "application/json",
                         "User-Agent": "ProcessShield-Simulator/2.0",
-                        "X-ProcessShield-Key": args.key
+                        "X-ProcessShield-Key": args.key,
+                        "X-Agent-Token": os.environ.get("AGENT_TOKEN", "ProcessShield-Secret-Token-2026")
                     }
                 )
                 with urllib.request.urlopen(req, timeout=3) as resp:

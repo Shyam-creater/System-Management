@@ -317,6 +317,23 @@ export const sessionRepo = {
 
     results.sort((a, b) => new Date(b.loginAt).getTime() - new Date(a.loginAt).getTime());
     return results.slice(0, limit);
+  },
+
+  async deleteOlderThan(cutoff: Date): Promise<number> {
+    let deleted = 0;
+    for (const [id, s] of memorySessions.entries()) {
+      if (new Date(s.loginAt) < cutoff) {
+        memorySessions.delete(id);
+        deleted++;
+      }
+    }
+    if (isDatabaseConnected()) {
+      try {
+        const res = await SessionModel.deleteMany({ loginAt: { $lt: cutoff } });
+        return res.deletedCount || deleted;
+      } catch {}
+    }
+    return deleted;
   }
 };
 
@@ -363,6 +380,7 @@ export function startSessionSweeper() {
 // ==========================================
 
 export const labsRouter = Router();
+export const setLabsIo = (_socketIo: any) => {};
 
 // GET /api/labs - List all labs with counts + unassigned
 labsRouter.get('/labs', async (req: Request, res: Response) => {

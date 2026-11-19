@@ -6,13 +6,20 @@ import { initSocket } from './sockets/socketHandler.js';
 import { discoveryService } from './integrations/discovery.js';
 import { initCronJobs } from './jobs/cronJobs.js';
 import { sshService } from './services/sshService.js';
-import { startSessionSweeper } from './labs.js';
+import { startSessionSweeper, setLabsIo } from './labs.js';
+import { setCommandsIo } from './commands.js';
+import { setPoliciesIo } from './policies.js';
+import { setSchedulesIo, startSchedulerTicker } from './schedules.js';
 import { logger } from './utils/logger.js';
 
 const server = http.createServer(app);
 
 // Initialize Socket.IO
-initSocket(server);
+const io = initSocket(server);
+setLabsIo(io);
+setCommandsIo(io);
+setPoliciesIo(io);
+setSchedulesIo(io);
 
 // Start Server Function
 async function startServer() {
@@ -41,6 +48,9 @@ async function startServer() {
 
     // 6. Initialize Stale Session Sweeper
     startSessionSweeper();
+
+    // 7. Initialize Autonomous Lab Schedule Ticker
+    startSchedulerTicker();
 
     logger.info('========================================================================');
   });

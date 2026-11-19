@@ -12,9 +12,18 @@ import {
 const api = axios.create({
   baseURL: '/api',
   timeout: 15000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json'
   }
+});
+
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('processshield_admin_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 export const fleetApi = {
@@ -143,6 +152,56 @@ export const sessionsApi = {
     const str = qs.toString();
     return `/api/sessions/export${str ? `?${str}` : ''}`;
   }
+};
+
+export const authApi = {
+  login: async (username: string, password: string): Promise<{ status: string; token: string; user: any }> => {
+    const res = await api.post('/auth/login', { username, password });
+    if (res.data.token) {
+      localStorage.setItem('processshield_admin_token', res.data.token);
+    }
+    return res.data;
+  },
+  getMe: (): Promise<{ authenticated: boolean; user: any }> =>
+    api.get('/auth/me').then(res => res.data),
+  logout: async () => {
+    localStorage.removeItem('processshield_admin_token');
+    return api.post('/auth/logout').then(res => res.data);
+  }
+};
+
+export const commandsApi = {
+  createLabCommand: (
+    labId: string,
+    data: { type: string; payload?: { delaySec?: number; text?: string }; nodeIds?: string[] }
+  ): Promise<{ status: string; queuedCount: number; skippedCount: number; commands: any[]; message?: string }> =>
+    api.post(`/labs/${labId}/commands`, data).then(res => res.data),
+  getLabCommands: (labId: string, limit = 50): Promise<{ commands: any[]; total: number }> =>
+    api.get(`/labs/${labId}/commands?limit=${limit}`).then(res => res.data)
+};
+
+export const policiesApi = {
+  getPolicies: (labId?: string): Promise<{ policies: any[] }> =>
+    api.get(`/policies${labId ? `?labId=${labId}` : ''}`).then(res => res.data),
+  createPolicy: (data: any): Promise<{ status: string; policy: any }> =>
+    api.post('/policies', data).then(res => res.data),
+  updatePolicy: (id: string, data: any): Promise<{ status: string; policy: any }> =>
+    api.put(`/policies/${id}`, data).then(res => res.data),
+  deletePolicy: (id: string): Promise<{ status: string }> =>
+    api.delete(`/policies/${id}`).then(res => res.data),
+  getViolations: (params?: { labId?: string; username?: string; limit?: number }): Promise<{ violations: any[]; total: number }> =>
+    api.get('/violations', { params }).then(res => res.data)
+};
+
+export const schedulesApi = {
+  getSchedules: (labId?: string): Promise<{ schedules: any[] }> =>
+    api.get(`/schedules${labId ? `?labId=${labId}` : ''}`).then(res => res.data),
+  createSchedule: (data: any): Promise<{ status: string; schedule: any }> =>
+    api.post('/schedules', data).then(res => res.data),
+  updateSchedule: (id: string, data: any): Promise<{ status: string; schedule: any }> =>
+    api.put(`/schedules/${id}`, data).then(res => res.data),
+  deleteSchedule: (id: string): Promise<{ status: string }> =>
+    api.delete(`/schedules/${id}`).then(res => res.data)
 };
 
 export default api;

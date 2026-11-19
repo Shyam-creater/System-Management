@@ -10,6 +10,10 @@ export const env = {
   MONGODB_URI: process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/System_Management',
   CLIENT_URL: process.env.CLIENT_URL || 'http://localhost:5173',
   PROCESSSHIELD_KEY: process.env.PROCESSSHIELD_KEY || 'ProcessShield-OS-2026',
-  PROCESSSHIELD_RETENTION_DAYS: parseInt(process.env.PROCESSSHIELD_RETENTION_DAYS || '7', 10),
+  PROCESSSHIELD_RETENTION_DAYS: parseInt(process.env.PROCESSSHIELD_RETENTION_DAYS || '180', 10),
   DISCOVERY_PORT: parseInt(process.env.DISCOVERY_PORT || '8081', 10),
+  JWT_SECRET: process.env.JWT_SECRET || 'ProcessShield-LabGuardian-Secret-Key-2026',
+  ADMIN_USERNAME: process.env.ADMIN_USERNAME || 'admin',
+  ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || 'admin123',
+  AGENT_TOKEN: process.env.AGENT_TOKEN || 'ProcessShield-Secret-Token-2026',
 };

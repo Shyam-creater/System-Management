@@ -29,6 +29,18 @@ try:
 except ImportError:
     start_session_tracker_thread = None
 
+# Import remote command executor for Lab Management
+try:
+    from command_executor import start_command_executor_thread
+except ImportError:
+    start_command_executor_thread = None
+
+# Import process policy enforcer for Lab Management
+try:
+    from policy_enforcer import start_policy_enforcer_thread
+except ImportError:
+    start_policy_enforcer_thread = None
+
 DEFAULT_AUTH_KEY = "ProcessShield-OS-2026"
 DEFAULT_INTERVAL = 5
 
@@ -424,6 +436,16 @@ def main():
         print(f" [*] Launching Lab Session Tracker for '{node_id}'...")
         start_session_tracker_thread(server_url=target_server, node_id=node_id, interval=args.interval)
 
+    # Start Remote Command Executor thread
+    if start_command_executor_thread:
+        print(f" [*] Launching Remote Command Executor for '{node_id}'...")
+        start_command_executor_thread(server_url=target_server, node_id=node_id, is_simulated=False, interval=args.interval)
+
+    # Start Process Policy Enforcer thread
+    if start_policy_enforcer_thread:
+        print(f" [*] Launching Process Policy Enforcer for '{node_id}'...")
+        start_policy_enforcer_thread(server_url=target_server, node_id=node_id, is_simulated=False, interval=args.interval)
+
     consecutive_failures = 0
 
     while True:
@@ -471,7 +493,8 @@ def main():
                 headers={
                     "Content-Type": "application/json",
                     "User-Agent": "ProcessShield-AutomatedAgent/2.0",
-                    "X-ProcessShield-Key": args.key
+                    "X-ProcessShield-Key": args.key,
+                    "X-Agent-Token": os.environ.get("AGENT_TOKEN", "ProcessShield-Secret-Token-2026")
                 }
             )
             with urllib.request.urlopen(req, timeout=10) as resp:

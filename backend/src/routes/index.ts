@@ -7,8 +7,14 @@ import { softwareController } from '../controllers/softwareController.js';
 import { simulatorController } from '../controllers/simulatorController.js';
 import { algorithmController } from '../controllers/algorithmController.js';
 import { sshController } from '../controllers/sshController.js';
+import { authController } from '../controllers/authController.js';
 
 const router = Router();
+
+// Authentication
+router.post('/auth/login', (req, res) => authController.login(req, res));
+router.get('/auth/me', (req, res) => authController.me(req, res));
+router.post('/auth/logout', (req, res) => authController.logout(req, res));
 
 // Master Status & Fleet
 router.get('/status', (req, res) => nodeController.getStatus(req, res));

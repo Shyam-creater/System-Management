@@ -1,10 +1,14 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
 import routes from './routes/index.js';
 import { labsRouter } from './labs.js';
+import { commandsRouter } from './commands.js';
+import { policiesRouter } from './policies.js';
+import { schedulesRouter } from './schedules.js';
 import { env } from './config/env.js';
 import { logger } from './utils/logger.js';
 
@@ -17,9 +21,10 @@ app.use(helmet({
 
 // CORS Configuration
 app.use(cors({
-  origin: '*',
+  origin: true,
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-ProcessShield-Key']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-ProcessShield-Key', 'X-Agent-Token']
 }));
 
 // Rate Limiting (Relaxed for 5-second agent polling)
@@ -31,9 +36,10 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Body Parsers
+// Body Parsers & Cookie Parser
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
+app.use(cookieParser());
 
 // Logging middleware
 app.use((req, res, next) => {
@@ -46,6 +52,9 @@ app.use((req, res, next) => {
 // API Routes
 app.use('/api', routes);
 app.use('/api', labsRouter);
+app.use('/api', commandsRouter);
+app.use('/api', policiesRouter);
+app.use('/api', schedulesRouter);
 
 // Serve Static Frontend if built in production
 const frontendDist = path.resolve(__dirname, '../../frontend/dist');
