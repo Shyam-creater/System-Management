@@ -81,7 +81,7 @@ export const Labs: React.FC = () => {
 
   // Selected lab & active sub-tab
   const [selectedLabId, setSelectedLabId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'seatmap' | 'reports' | 'software' | 'commands' | 'schedules'>('seatmap');
+  const [activeTab, setActiveTab] = useState<'seatmap' | 'reports' | 'software' | 'schedules'>('seatmap');
 
   // Sub-view specific filters & selectors for lab systems
   const [selectedReportNodeId, setSelectedReportNodeId] = useState<string | null>(null);
@@ -185,8 +185,7 @@ export const Labs: React.FC = () => {
   const { data: commandsData } = useQuery({
     queryKey: ['labCommands', activeLabId],
     queryFn: () => (activeLabId ? commandsApi.getLabCommands(activeLabId) : null),
-    enabled: !!activeLabId && activeTab === 'commands',
-    refetchInterval: 4000
+    enabled: false
   });
 
   const { data: policiesData } = useQuery({
@@ -612,17 +611,6 @@ export const Labs: React.FC = () => {
               <span>Software Inventory</span>
             </button>
             <button
-              onClick={() => setActiveTab('commands')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 ${
-                activeTab === 'commands'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
-              }`}
-            >
-              <Zap className="w-3.5 h-3.5" />
-              <span>Remote Commands ({commands.length})</span>
-            </button>
-            <button
               onClick={() => setActiveTab('schedules')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 ${
                 activeTab === 'schedules'
@@ -637,88 +625,6 @@ export const Labs: React.FC = () => {
 
           {/* Quick Lab Actions Controls */}
           <div className="flex items-center gap-2 relative">
-            {/* Lab Actions Dropdown Button */}
-            <div className="relative">
-              <button
-                onClick={() => setIsActionMenuOpen(!isActionMenuOpen)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition active:scale-95"
-              >
-                <Zap className="w-3.5 h-3.5 text-amber-300" />
-                <span>Lab Actions</span>
-                <span className="text-[10px] ml-0.5">▼</span>
-              </button>
-
-              {isActionMenuOpen && (
-                <div
-                  className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-30 animate-fadeIn"
-                  onMouseLeave={() => setIsActionMenuOpen(false)}
-                >
-                  <button
-                    onClick={() => {
-                      setCommandAction('message');
-                      setIsActionMenuOpen(false);
-                    }}
-                    className="w-full text-left px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                  >
-                    <MessageSquare className="w-4 h-4 text-blue-500" />
-                    <span>Send Announcement</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setCommandAction('lock');
-                      setIsActionMenuOpen(false);
-                    }}
-                    className="w-full text-left px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                  >
-                    <Lock className="w-4 h-4 text-amber-500" />
-                    <span>Lock All Screens</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setCommandAction('logoff');
-                      setIsActionMenuOpen(false);
-                    }}
-                    className="w-full text-left px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                  >
-                    <LogOut className="w-4 h-4 text-indigo-500" />
-                    <span>Log Off Users</span>
-                  </button>
-                  <div className="my-1 border-t border-slate-100" />
-                  <button
-                    onClick={() => {
-                      setCommandAction('restart');
-                      setIsActionMenuOpen(false);
-                    }}
-                    className="w-full text-left px-3.5 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50 flex items-center gap-2"
-                  >
-                    <RotateCcw className="w-4 h-4 text-amber-600" />
-                    <span>Restart Entire Lab</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setCommandAction('shutdown');
-                      setIsActionMenuOpen(false);
-                    }}
-                    className="w-full text-left px-3.5 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 flex items-center gap-2"
-                  >
-                    <Power className="w-4 h-4 text-rose-600" />
-                    <span>Shut Down Entire Lab</span>
-                  </button>
-                  <div className="my-1 border-t border-slate-100" />
-                  <button
-                    onClick={() => {
-                      setCommandAction('cancel_shutdown');
-                      setIsActionMenuOpen(false);
-                    }}
-                    className="w-full text-left px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
-                  >
-                    <RotateCcw className="w-4 h-4 text-emerald-500" />
-                    <span>Cancel Pending Shutdown</span>
-                  </button>
-                </div>
-              )}
-            </div>
-
             {/* Add Node under Current Lab */}
             <button
               onClick={() => setIsAddNodeModalOpen(true)}
@@ -1246,116 +1152,6 @@ export const Labs: React.FC = () => {
         </div>
       )}
 
-      {/* 4. MAIN CONTENT AREA: TAB 2 - REMOTE COMMANDS AUDIT */}
-      {activeTab === 'commands' && currentLab && (
-        <div className="space-y-6">
-          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Zap className="w-5 h-5 text-amber-500" />
-                <span>Remote Command History for {currentLab.name}</span>
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Audit trail of administrative lab-wide shutdowns, restarts, screen locks, and broadcast messages
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setCommandAction('message')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 text-xs font-semibold border border-blue-200 transition"
-              >
-                <MessageSquare className="w-3.5 h-3.5" />
-                <span>Broadcast Message</span>
-              </button>
-              <button
-                onClick={() => setCommandAction('lock')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 text-amber-700 hover:bg-amber-100 text-xs font-semibold border border-amber-200 transition"
-              >
-                <Lock className="w-3.5 h-3.5" />
-                <span>Lock Lab</span>
-              </button>
-              <button
-                onClick={() => setCommandAction('shutdown')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs font-semibold border border-rose-200 transition"
-              >
-                <Power className="w-3.5 h-3.5" />
-                <span>Shut Down Lab</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-hidden">
-            {commands.length === 0 ? (
-              <div className="py-12 text-center text-slate-400">
-                <Clock className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                <p className="text-sm font-semibold">No remote commands dispatched yet for this lab.</p>
-                <p className="text-xs text-slate-400 mt-1">Use "Lab Actions" to run commands across all workstations.</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs font-mono">
-                  <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
-                    <tr>
-                      <th className="p-3">Time</th>
-                      <th className="p-3">Command</th>
-                      <th className="p-3">Target Node</th>
-                      <th className="p-3">Status</th>
-                      <th className="p-3">Initiated By</th>
-                      <th className="p-3">Result / Details</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {commands.map((cmd) => {
-                      const isPending = cmd.status === 'pending';
-                      const isSent = cmd.status === 'sent';
-                      const isDone = cmd.status === 'done';
-                      const isFailed = cmd.status === 'failed';
-                      const isSkipped = cmd.status === 'skipped';
-
-                      return (
-                        <tr key={cmd._id || cmd.id} className="hover:bg-slate-50/60 transition">
-                          <td className="p-3 text-slate-500 whitespace-nowrap">
-                            {new Date(cmd.createdAt).toLocaleTimeString()}
-                          </td>
-                          <td className="p-3">
-                            <span className="font-sans font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 uppercase text-[10px]">
-                              {cmd.type}
-                            </span>
-                          </td>
-                          <td className="p-3 font-medium text-slate-800">{cmd.nodeId}</td>
-                          <td className="p-3">
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                isDone
-                                  ? 'bg-emerald-100 text-emerald-700'
-                                  : isPending
-                                  ? 'bg-amber-100 text-amber-700 animate-pulse'
-                                  : isSent
-                                  ? 'bg-sky-100 text-sky-700'
-                                  : isSkipped
-                                  ? 'bg-slate-100 text-slate-600'
-                                  : 'bg-rose-100 text-rose-700'
-                              }`}
-                            >
-                              {cmd.status.toUpperCase()}
-                            </span>
-                          </td>
-                          <td className="p-3 text-slate-500">{cmd.createdBy}</td>
-                          <td className="p-3 text-slate-600 truncate max-w-xs" title={cmd.result || ''}>
-                            {cmd.result || (cmd.payload?.text ? `"${cmd.payload.text}"` : 'Awaiting acknowledgement')}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* 4. MAIN CONTENT AREA: TAB 4 - AUTOMATED SCHEDULES */}
       {activeTab === 'schedules' && currentLab && (
         <div className="space-y-6">
@@ -1428,140 +1224,6 @@ export const Labs: React.FC = () => {
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-      )}
-
-      {/* 5. MODAL: REMOTE COMMAND CONFIRMATION (PHASE 2) */}
-      {commandAction && currentLab && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                {commandAction === 'shutdown' ? (
-                  <>
-                    <Power className="w-4 h-4 text-rose-600" />
-                    <span>Confirm Lab Shutdown</span>
-                  </>
-                ) : commandAction === 'restart' ? (
-                  <>
-                    <RotateCcw className="w-4 h-4 text-indigo-600" />
-                    <span>Confirm Lab Restart</span>
-                  </>
-                ) : commandAction === 'lock' ? (
-                  <>
-                    <Lock className="w-4 h-4 text-amber-500" />
-                    <span>Lock All Screens</span>
-                  </>
-                ) : commandAction === 'logoff' ? (
-                  <>
-                    <LogOut className="w-4 h-4 text-indigo-600" />
-                    <span>Log Off Users</span>
-                  </>
-                ) : commandAction === 'message' ? (
-                  <>
-                    <MessageSquare className="w-4 h-4 text-blue-600" />
-                    <span>Broadcast Announcement</span>
-                  </>
-                ) : (
-                  <>
-                    <AlertTriangle className="w-4 h-4 text-emerald-600" />
-                    <span>Abort Scheduled Shutdown</span>
-                  </>
-                )}
-              </h3>
-              <button onClick={() => setCommandAction(null)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Target Lab: <span className="font-bold text-slate-900">{currentLab.name}</span>
-              <br />
-              Online Workstations Affected: <span className="font-bold text-blue-600">{onlineInCurrentLab}</span> of {machines.length}
-            </p>
-
-            {(commandAction === 'shutdown' || commandAction === 'restart') && (
-              <div className="space-y-3 pt-2 border-t border-slate-100">
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">
-                    Grace Period Delay (Seconds before execution):
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={3600}
-                    value={commandDelaySec}
-                    onChange={(e) => setCommandDelaySec(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold"
-                  />
-                  <span className="text-[10px] text-slate-400 mt-0.5 block">
-                    Allows students time to save open code and coursework.
-                  </span>
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">
-                    Confirmation required. Type <span className="text-rose-600 font-bold select-all">"{currentLab.name}"</span> to confirm:
-                  </label>
-                  <input
-                    type="text"
-                    placeholder={`Type ${currentLab.name}`}
-                    value={commandConfirmText}
-                    onChange={(e) => setCommandConfirmText(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-rose-300 text-xs font-bold bg-rose-50/30"
-                  />
-                </div>
-              </div>
-            )}
-
-            {commandAction === 'message' && (
-              <div className="space-y-2 pt-2 border-t border-slate-100">
-                <label className="text-xs font-semibold text-slate-700 block">
-                  Announcement Message (Max 200 characters):
-                </label>
-                <textarea
-                  rows={3}
-                  maxLength={200}
-                  value={commandMessage}
-                  onChange={(e) => setCommandMessage(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800"
-                />
-                <span className="text-[10px] text-slate-400 text-right block">{commandMessage.length}/200</span>
-              </div>
-            )}
-
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-              <button
-                onClick={() => setCommandAction(null)}
-                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold"
-              >
-                Cancel
-              </button>
-              <button
-                disabled={
-                  (commandAction === 'shutdown' || commandAction === 'restart')
-                    ? commandConfirmText.trim() !== currentLab.name.trim()
-                    : dispatchCommandMutation.isPending
-                }
-                onClick={() => {
-                  dispatchCommandMutation.mutate({
-                    type: commandAction,
-                    payload: {
-                      delaySec: commandDelaySec,
-                      text: commandMessage
-                    }
-                  });
-                }}
-                className={`px-4 py-2 rounded-xl text-white text-xs font-bold shadow-md transition disabled:opacity-50 disabled:cursor-not-allowed ${
-                  commandAction === 'shutdown' || commandAction === 'restart'
-                    ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/20'
-                    : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20'
-                }`}
-              >
-                {dispatchCommandMutation.isPending ? 'Dispatching...' : 'Execute Lab Action'}
-              </button>
-            </div>
           </div>
         </div>
       )}

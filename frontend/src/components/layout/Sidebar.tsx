@@ -2,15 +2,15 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   Shield,
-  Monitor,
-  Building
+  LayoutDashboard,
+  Building2
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { fleetApi, alertsApi } from '../../services/api';
 
-const navItems: Array<{ name: string; path: string; icon: any; emoji: string; badge?: boolean }> = [
-  { name: 'Fleet Overview', path: '/', icon: Monitor, emoji: '🖥️' },
-  { name: 'Computer Labs', path: '/labs', icon: Building, emoji: '🏛️' },
+const navItems: Array<{ name: string; path: string; icon: any }> = [
+  { name: 'Dashboard', path: '/', icon: LayoutDashboard },
+  { name: 'Computer Labs', path: '/labs', icon: Building2 },
 ];
 
 export const Sidebar: React.FC = () => {
@@ -52,25 +52,34 @@ export const Sidebar: React.FC = () => {
           </div>
         </div>
 
-        {/* Navigation Items list: The 3 before menus matching web/index.html */}
+        {/* Navigation Items list matching reference image */}
         <nav className="p-3 space-y-1.5 overflow-y-auto max-h-[calc(100vh-160px)]">
           {navItems.map((item) => {
+            const Icon = item.icon;
             return (
               <NavLink
                 key={item.path}
                 to={item.path}
                 end={item.path === '/'}
                 className={({ isActive }) =>
-                  `flex items-center justify-between px-3.5 py-3 rounded-xl font-semibold text-xs sm:text-sm transition-all ${
+                  `group flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all ${
                     isActive
-                      ? 'bg-[#1d68ff] text-white shadow-md shadow-blue-600/20'
-                      : 'text-slate-600 hover:text-[#1d68ff] hover:bg-blue-50/70'
+                      ? 'bg-[#1d68ff] text-white shadow-md shadow-blue-600/25 font-bold'
+                      : 'text-slate-600 hover:text-[#1d68ff] hover:bg-blue-50/70 font-semibold'
                   }`
                 }
               >
                 {({ isActive }) => (
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="text-base leading-none">{item.emoji}</span>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div
+                      className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                        isActive
+                          ? 'bg-white/20 text-white'
+                          : 'bg-slate-100 text-slate-500 group-hover:bg-blue-100/70 group-hover:text-blue-600'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                    </div>
                     <span className="truncate">{item.name}</span>
                   </div>
                 )}

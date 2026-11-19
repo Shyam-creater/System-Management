@@ -16,8 +16,14 @@ import {
   X,
   Box,
   GraduationCap,
-  User
+  User,
+  Clock,
+  Network,
+  Building2,
+  CheckCircle2
 } from 'lucide-react';
+import { PlatformIcon } from '../components/common/PlatformIcon';
+import { ProcessIcon } from '../components/common/ProcessIcon';
 import {
   AreaChart,
   Area,
@@ -73,125 +79,64 @@ export const Dashboard: React.FC = () => {
   const nodes = rawNodes.length > 0 ? rawNodes : [];
   const primaryNode = nodes.find(n => !n.is_simulated) || nodes[0];
 
-  // Derived metrics matching reference image defaults or live host readings
-  const cpuPercent = primaryNode?.cpu_percent ?? 24.5;
-  const ramTotalGb = primaryNode?.ram_total_gb ?? 32.0;
-  const ramUsedGb = primaryNode?.ram_used_gb ?? 16.21;
-  const ramPercent = primaryNode?.ram_percent ?? 50.6;
-  const ramFreeGb = Math.max(0, +(ramTotalGb - ramUsedGb).toFixed(2)) || 15.79;
-  const totalProcesses = primaryNode?.process_count ?? 682;
-  const activeAlertsCount = alertsData?.total ?? 3;
+  // Query live history for primary node from backend
+  const { data: hostHistoryData } = useQuery({
+    queryKey: ['hostHistory', primaryNode?.node_id],
+    queryFn: () => (primaryNode?.node_id ? fleetApi.getHistory(primaryNode.node_id, 24) : null),
+    enabled: !!primaryNode?.node_id,
+    refetchInterval: 8000
+  });
+
+  // Real backend metrics without dummy fallbacks
+  const hasTelemetry = Boolean(primaryNode);
+  const cpuPercent = primaryNode?.cpu_percent != null ? Number(primaryNode.cpu_percent) : 0;
+  const ramTotalGb = primaryNode?.ram_total_gb != null ? Number(primaryNode.ram_total_gb) : 0;
+  const ramUsedGb = primaryNode?.ram_used_gb != null ? Number(primaryNode.ram_used_gb) : 0;
+  const ramPercent = primaryNode?.ram_percent != null ? Number(primaryNode.ram_percent) : 0;
+  const ramFreeGb = Math.max(0, +(ramTotalGb - ramUsedGb).toFixed(2));
+  const totalProcesses = primaryNode?.process_count ?? (primaryNode?.processes?.length || 0);
+  const activeAlertsCount = alertsData?.total ?? (alertsData?.alerts?.length || 0);
 
   // Donut chart data for Resource Distribution
-  const pieData = [
-    { name: 'Used', value: ramUsedGb, color: '#1d68ff' },
-    { name: 'Free', value: ramFreeGb, color: '#93c5fd' }
-  ];
-
-  // Live trend area chart data
-  const chartData = [
-    { time: '09:00', cpu: 22, memory: 48 },
-    { time: '09:15', cpu: 28, memory: 52 },
-    { time: '09:30', cpu: 24, memory: 49 },
-    { time: '09:45', cpu: 38, memory: 56 },
-    { time: '10:00', cpu: 32, memory: 51 },
-    { time: '10:15', cpu: Math.round(cpuPercent), memory: Math.round(ramPercent) }
-  ];
-
-  // Top processes list matching reference image
-  const activeProcesses: ProcessItem[] = primaryNode?.processes && primaryNode.processes.length > 0
-    ? [...primaryNode.processes].sort((a, b) => b.cpu_percent - a.cpu_percent).slice(0, 5)
+  const pieData = ramTotalGb > 0
+    ? [
+        { name: 'Used', value: ramUsedGb, color: '#1d68ff' },
+        { name: 'Free', value: ramFreeGb, color: '#93c5fd' }
+      ]
     : [
-        { pid: 4821, ppid: 1, name: 'code', user: 'admin', is_user_app: true, category: 'App', state: 'RUNNING', cpu_percent: 12.6, memory_mb: 1240 },
-        { pid: 5103, ppid: 1, name: 'chrome', user: 'admin', is_user_app: true, category: 'App', state: 'RUNNING', cpu_percent: 8.9, memory_mb: 2110 },
-        { pid: 3950, ppid: 1, name: 'node', user: 'admin', is_user_app: true, category: 'App', state: 'RUNNING', cpu_percent: 4.7, memory_mb: 612 },
-        { pid: 2711, ppid: 1, name: 'systemd', user: 'root', is_user_app: false, category: 'System', state: 'SLEEPING', cpu_percent: 3.2, memory_mb: 128 },
-        { pid: 6302, ppid: 1, name: 'python', user: 'admin', is_user_app: true, category: 'App', state: 'RUNNING', cpu_percent: 2.9, memory_mb: 356 }
+        { name: 'Used', value: 0, color: '#1d68ff' },
+        { name: 'Free', value: 1, color: '#e2e8f0' }
       ];
 
-  // Application icon helper
-  const getProcessIcon = (name: string) => {
-    const lower = name.toLowerCase();
-    if (lower.includes('code') || lower.includes('vs')) {
-      return (
-        <span className="w-5 h-5 rounded bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold text-[10px]">
-          ⌘
-        </span>
-      );
-    }
-    if (lower.includes('chrome') || lower.includes('browser') || lower.includes('edge')) {
-      return (
-        <span className="w-5 h-5 rounded bg-amber-500/15 text-amber-600 flex items-center justify-center font-bold text-[10px]">
-          ◎
-        </span>
-      );
-    }
-    if (lower.includes('node')) {
-      return (
-        <span className="w-5 h-5 rounded bg-emerald-500/15 text-emerald-600 flex items-center justify-center font-bold text-[10px]">
-          ⬢
-        </span>
-      );
-    }
-    if (lower.includes('python')) {
-      return (
-        <span className="w-5 h-5 rounded bg-sky-500/15 text-sky-600 flex items-center justify-center font-bold text-[10px]">
-          🐍
-        </span>
-      );
-    }
-    return (
-      <span className="w-5 h-5 rounded bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-[10px]">
-        ⚙
-      </span>
-    );
-  };
+  // Live trend area chart data from real backend history
+  const rawHistory: any[] = hostHistoryData?.history || [];
+  const chartData = rawHistory.length > 0
+    ? [...rawHistory]
+        .reverse()
+        .slice(-14)
+        .map((h: any) => ({
+          time: new Date((h.timestamp || Date.now() / 1000) * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          cpu: Math.round(h.cpu_percent ?? 0),
+          memory: Math.round(h.ram_percent ?? 0)
+        }))
+    : [
+        {
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          cpu: Math.round(cpuPercent),
+          memory: Math.round(ramPercent)
+        }
+      ];
 
-  // Recent alerts list matching reference image
-  const recentAlerts = [
-    {
-      id: '1',
-      title: 'High CPU Usage',
-      level: 'CRITICAL',
-      desc: 'CPU usage exceeded 90% on Ubuntu-Node-01',
-      time: '2 min ago'
-    },
-    {
-      id: '2',
-      title: 'Memory Spike Detected',
-      level: 'WARNING',
-      desc: 'Memory usage at 78% on Windows-Dev-01',
-      time: '7 min ago'
-    },
-    {
-      id: '3',
-      title: 'New Device Connected',
-      level: 'INFO',
-      desc: 'Simulator-Node-01 joined the fleet',
-      time: '10 min ago'
-    }
-  ];
+  // Top processes list directly from live host telemetry
+  const activeProcesses: ProcessItem[] = (primaryNode?.processes && primaryNode.processes.length > 0)
+    ? [...primaryNode.processes].sort((a, b) => (b.cpu_percent || 0) - (a.cpu_percent || 0)).slice(0, 5)
+    : [];
 
-  // Monitored devices list matching reference image
-  type DisplayDevice = NodeInfo | {
-    node_id: string;
-    hostname: string;
-    ip: string;
-    system_type: string;
-    cpu_percent: number;
-    ram_percent: number;
-    is_simulated: boolean;
-    labId?: string;
-    seat?: number;
-    currentUser?: string;
-  };
+  // Recent alerts directly from alerts API
+  const recentAlerts: any[] = alertsData?.alerts || [];
 
-  const displayDevices: DisplayDevice[] = nodes.length > 0 ? nodes : [
-    { node_id: '1', hostname: 'MacBook-Pro', ip: '192.168.1.10', system_type: 'macOS', cpu_percent: 24.5, ram_percent: 50.6, is_simulated: false },
-    { node_id: '2', hostname: 'Ubuntu-Node-01', ip: '192.168.1.11', system_type: 'Ubuntu Linux', cpu_percent: 18.2, ram_percent: 42.1, is_simulated: false },
-    { node_id: '3', hostname: 'Windows-Dev-01', ip: '192.168.1.12', system_type: 'Windows 11', cpu_percent: 31.4, ram_percent: 67.8, is_simulated: false },
-    { node_id: '4', hostname: 'Simulator-Node-01', ip: '192.168.1.101', system_type: 'Simulated VM', cpu_percent: 45.0, ram_percent: 55.0, is_simulated: true }
-  ];
+  // Monitored devices directly from registered nodes API
+  const displayDevices: NodeInfo[] = nodes;
 
   // Active modal node
   const activeModalNode = activeModalNodeId ? nodes.find(n => n.node_id === activeModalNodeId) || null : null;
@@ -225,10 +170,10 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Title Bar matching reference image & web/index.html */}
+      {/* Title Bar matching reference image */}
       <PageHeader
-        title="Fleet Overview"
-        subtitle="Real-time system monitoring and distributed resource management"
+        title="Dashboard"
+        subtitle="Real-time system monitoring and resource management"
       />
 
       {/* 1. TOP 4 METRIC CARDS matching reference image layout */}
@@ -245,12 +190,16 @@ export const Dashboard: React.FC = () => {
           <div className="mt-3 flex items-baseline justify-between">
             <div>
               <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
-                {cpuPercent.toFixed(1)}%
+                {hasTelemetry ? `${cpuPercent.toFixed(1)}%` : '0.0%'}
               </span>
-              <div className="flex items-center gap-1 text-xs font-semibold text-emerald-500 mt-1">
-                <TrendingDown className="w-3.5 h-3.5" />
-                <span>-12.8% from last hour</span>
-              </div>
+              {primaryNode ? (
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 mt-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>{primaryNode.hostname} (Live)</span>
+                </div>
+              ) : (
+                <span className="text-xs text-slate-400 mt-1 block">Awaiting node telemetry</span>
+              )}
             </div>
             {/* Sparkline curve matching reference image */}
             <div className="w-20 h-10 shrink-0">
@@ -273,10 +222,12 @@ export const Dashboard: React.FC = () => {
           <div className="mt-3 flex items-baseline justify-between">
             <div>
               <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
-                {ramUsedGb.toFixed(2)} GB
+                {hasTelemetry ? `${ramUsedGb.toFixed(2)} GB` : '0.00 GB'}
               </span>
               <div className="text-xs font-normal text-slate-500 mt-1">
-                of {ramTotalGb.toFixed(2)} GB ({ramPercent.toFixed(1)}%)
+                {hasTelemetry && ramTotalGb > 0
+                  ? `of ${ramTotalGb.toFixed(2)} GB (${ramPercent.toFixed(1)}%)`
+                  : 'Host System RAM'}
               </div>
             </div>
             {/* Sparkline curve */}
@@ -302,9 +253,8 @@ export const Dashboard: React.FC = () => {
               <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
                 {totalProcesses}
               </span>
-              <div className="flex items-center gap-1 text-xs font-semibold text-emerald-500 mt-1">
-                <TrendingUp className="w-3.5 h-3.5" />
-                <span>+3.4% from last hour</span>
+              <div className="flex items-center gap-1 text-xs font-semibold text-blue-600 mt-1">
+                <span>{activeProcesses.length > 0 ? `${activeProcesses.length} top CPU tasks` : 'System processes'}</span>
               </div>
             </div>
             {/* Sparkline curve */}
@@ -319,7 +269,7 @@ export const Dashboard: React.FC = () => {
         {/* Card 4: Active Alerts */}
         <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-md transition-all flex flex-col justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-rose-50 text-rose-500">
+            <div className={`p-2 rounded-xl ${activeAlertsCount > 0 ? 'bg-rose-50 text-rose-500' : 'bg-emerald-50 text-emerald-600'}`}>
               <AlertTriangle className="w-4 h-4" />
             </div>
             <span className="text-xs font-semibold text-slate-500">Active Alerts</span>
@@ -330,8 +280,9 @@ export const Dashboard: React.FC = () => {
               <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
                 {activeAlertsCount}
               </span>
-              <div className="flex items-center gap-1 text-xs font-semibold text-rose-500 mt-1">
-                <span>▲ +1 new alert</span>
+              <div className={`flex items-center gap-1 text-xs font-semibold mt-1 ${activeAlertsCount > 0 ? 'text-rose-500' : 'text-emerald-600'}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${activeAlertsCount > 0 ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`} />
+                <span>{activeAlertsCount > 0 ? `${activeAlertsCount} active alert${activeAlertsCount > 1 ? 's' : ''}` : 'All nodes healthy'}</span>
               </div>
             </div>
             {/* Coral Sparkline curve matching reference image */}
@@ -497,46 +448,58 @@ export const Dashboard: React.FC = () => {
             </Link>
           </div>
 
-          <div className="space-y-3 my-auto">
-            {recentAlerts.map((alt) => (
-              <div
-                key={alt.id}
-                className="p-2.5 rounded-xl bg-slate-50/70 border border-slate-100 hover:border-slate-200 transition"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span
-                      className={`w-2 h-2 rounded-full shrink-0 ${
-                        alt.level === 'CRITICAL'
-                          ? 'bg-rose-500'
-                          : alt.level === 'WARNING'
-                          ? 'bg-amber-500'
-                          : 'bg-blue-500'
-                      }`}
-                    />
-                    <span className="text-xs font-bold text-slate-900 truncate">
-                      {alt.title}
-                    </span>
-                  </div>
-                  <span
-                    className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase shrink-0 ${
-                      alt.level === 'CRITICAL'
-                        ? 'bg-rose-100 text-rose-700'
-                        : alt.level === 'WARNING'
-                        ? 'bg-amber-100 text-amber-800'
-                        : 'bg-blue-100 text-blue-700'
-                    }`}
+          {recentAlerts.length === 0 ? (
+            <div className="py-8 text-center text-slate-400 text-xs bg-slate-50/80 rounded-2xl border border-dashed border-slate-200 my-auto">
+              <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80" />
+              <p className="font-bold text-slate-800">All Systems Nominal</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">No active alerts reported across the fleet.</p>
+            </div>
+          ) : (
+            <div className="space-y-3 my-auto">
+              {recentAlerts.slice(0, 4).map((alt: any, idx: number) => {
+                const isCritical = alt.level === 'CRITICAL' || alt.severity === 'high';
+                const isWarning = alt.level === 'WARNING' || alt.severity === 'medium';
+                return (
+                  <div
+                    key={alt._id || alt.id || idx}
+                    className="p-2.5 rounded-xl bg-slate-50/70 border border-slate-100 hover:border-slate-200 transition"
                   >
-                    {alt.level}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-2 mt-1 pl-4 text-[10px] text-slate-400">
-                  <span className="text-slate-500 truncate">{alt.desc}</span>
-                  <span className="shrink-0">{alt.time}</span>
-                </div>
-              </div>
-            ))}
-          </div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span
+                          className={`w-2 h-2 rounded-full shrink-0 ${
+                            isCritical
+                              ? 'bg-rose-500 animate-pulse'
+                              : isWarning
+                              ? 'bg-amber-500'
+                              : 'bg-blue-500'
+                          }`}
+                        />
+                        <span className="text-xs font-bold text-slate-900 truncate">
+                          {alt.title || alt.message || alt.type || 'System Event'}
+                        </span>
+                      </div>
+                      <span
+                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase shrink-0 ${
+                          isCritical
+                            ? 'bg-rose-100 text-rose-700'
+                            : isWarning
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-blue-100 text-blue-700'
+                        }`}
+                      >
+                        {alt.level || 'INFO'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 mt-1 pl-4 text-[10px] text-slate-400">
+                      <span className="text-slate-500 truncate">{alt.details || alt.description || alt.message || (alt.node_id ? `Reported by ${alt.node_id}` : '')}</span>
+                      <span className="shrink-0">{alt.timestamp || alt.created_at ? new Date(alt.timestamp || alt.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recent'}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           <Link
             to="/alerts"
@@ -562,50 +525,58 @@ export const Dashboard: React.FC = () => {
             </Link>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-slate-100 text-[11px] font-semibold text-slate-400">
-                  <th className="pb-2.5">PID</th>
-                  <th className="pb-2.5">Process Name</th>
-                  <th className="pb-2.5">CPU %</th>
-                  <th className="pb-2.5">Memory (RSS)</th>
-                  <th className="pb-2.5 text-right">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100/80 font-mono text-[11px]">
-                {activeProcesses.map((proc) => {
-                  const isRunning = proc.state === 'RUNNING';
-                  const memDisplay = proc.memory_mb >= 1000
-                    ? `${(proc.memory_mb / 1024).toFixed(2)} GB`
-                    : `${Math.round(proc.memory_mb)} MB`;
+          {activeProcesses.length === 0 ? (
+            <div className="py-8 text-center text-slate-400 text-xs bg-slate-50/80 rounded-2xl border border-dashed border-slate-200">
+              <Cpu className="w-8 h-8 text-slate-300 mx-auto mb-2 opacity-80" />
+              <p className="font-bold text-slate-800">No Process Telemetry</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">Top processes will appear once an agent transmits telemetry.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100 text-[11px] font-semibold text-slate-400">
+                    <th className="pb-2.5">PID</th>
+                    <th className="pb-2.5">Process Name</th>
+                    <th className="pb-2.5">CPU %</th>
+                    <th className="pb-2.5">Memory (RSS)</th>
+                    <th className="pb-2.5 text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100/80 font-mono text-[11px]">
+                  {activeProcesses.map((proc) => {
+                    const isRunning = proc.state === 'RUNNING';
+                    const memDisplay = proc.memory_mb >= 1000
+                      ? `${(proc.memory_mb / 1024).toFixed(2)} GB`
+                      : `${Math.round(proc.memory_mb)} MB`;
 
-                  return (
-                    <tr key={proc.pid} className="hover:bg-slate-50/60 transition">
-                      <td className="py-2.5 text-slate-500 font-semibold">{proc.pid}</td>
-                      <td className="py-2.5 font-sans font-medium text-slate-800 flex items-center gap-2">
-                        {getProcessIcon(proc.name)}
-                        <span className="truncate max-w-[120px]">{proc.name}</span>
-                      </td>
-                      <td className="py-2.5 font-semibold text-slate-800">{proc.cpu_percent.toFixed(1)}%</td>
-                      <td className="py-2.5 text-slate-600">{memDisplay}</td>
-                      <td className="py-2.5 text-right font-sans">
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            isRunning
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : 'bg-blue-100 text-blue-700'
-                          }`}
-                        >
-                          {proc.state}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                    return (
+                      <tr key={proc.pid} className="hover:bg-slate-50/60 transition">
+                        <td className="py-2.5 text-slate-500 font-semibold">{proc.pid}</td>
+                        <td className="py-2.5 font-sans font-medium text-slate-800 flex items-center gap-2">
+                          <ProcessIcon name={proc.name} size={18} />
+                          <span className="truncate max-w-[120px] font-semibold">{proc.name}</span>
+                        </td>
+                        <td className="py-2.5 font-semibold text-slate-800">{(proc.cpu_percent || 0).toFixed(1)}%</td>
+                        <td className="py-2.5 text-slate-600">{memDisplay}</td>
+                        <td className="py-2.5 text-right font-sans">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              isRunning
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : 'bg-blue-100 text-blue-700'
+                            }`}
+                          >
+                            {proc.state}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Monitored Devices (col-span-4) matching reference image */}
@@ -634,58 +605,68 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="space-y-3">
-            {filteredDisplayDevices.map((dev, i) => {
-              const isSim = Boolean(dev.is_simulated);
-              const labObj = labs.find(l => l.id === dev.labId);
-              return (
-                <div
-                  key={dev.node_id || i}
-                  onClick={() => dev.node_id && setActiveModalNodeId(dev.node_id)}
-                  className="p-3 rounded-xl bg-slate-50/70 border border-slate-100 hover:border-blue-300 hover:bg-blue-50/40 transition cursor-pointer flex items-center justify-between gap-3"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="w-7 h-7 rounded-xl bg-white border border-slate-200/70 text-slate-700 flex items-center justify-center text-sm font-bold shadow-sm">
-                      {dev.hostname.includes('Mac') ? '' : dev.hostname.includes('Ubuntu') ? '🐧' : isSim ? '📦' : '田'}
-                    </span>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <p className="text-xs font-bold text-slate-900 truncate">
-                          {dev.hostname} {!isSim && i === 0 && '(Local)'}
-                        </p>
-                        {labObj && (
-                          <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-blue-50 text-blue-600 border border-blue-100">
-                            {labObj.name}
-                          </span>
-                        )}
-                        {dev.currentUser && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-blue-100 text-blue-700">
-                            👤 {dev.currentUser}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-slate-500 font-mono mt-0.5">
-                        CPU: {dev.cpu_percent ? dev.cpu_percent.toFixed(1) : '24.5'}% &nbsp;
-                        RAM: {dev.ram_percent ? dev.ram_percent.toFixed(1) : '50.6'}%
-                      </p>
-                    </div>
-                  </div>
-
-                  <span
-                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                      dev.currentUser
-                        ? 'bg-blue-600 text-white animate-pulse'
-                        : isSim
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-emerald-100 text-emerald-700'
-                    }`}
+          {filteredDisplayDevices.length === 0 ? (
+            <div className="py-8 text-center text-slate-400 text-xs bg-slate-50/80 rounded-2xl border border-dashed border-slate-200">
+              <Monitor className="w-8 h-8 text-slate-300 mx-auto mb-2 opacity-80" />
+              <p className="font-bold text-slate-800">No Monitored Workstations</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">Computers reporting to ProcessShield will appear here.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredDisplayDevices.map((dev, i) => {
+                const isSim = Boolean(dev.is_simulated);
+                const labObj = labs.find(l => l.id === dev.labId);
+                return (
+                  <div
+                    key={dev.node_id || i}
+                    onClick={() => dev.node_id && setActiveModalNodeId(dev.node_id)}
+                    className="p-3 rounded-xl bg-slate-50/70 border border-slate-100 hover:border-blue-300 hover:bg-blue-50/40 transition cursor-pointer flex items-center justify-between gap-3"
                   >
-                    {dev.currentUser ? 'In Use' : isSim ? 'Simulated' : 'Online'}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-8 h-8 rounded-xl bg-white border border-slate-200/80 flex items-center justify-center shadow-sm shrink-0">
+                        <PlatformIcon hostname={dev.hostname} isSimulated={isSim} size={18} />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-xs font-bold text-slate-900 truncate">
+                            {dev.hostname} {!isSim && i === 0 && '(Local)'}
+                          </p>
+                          {labObj && (
+                            <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-blue-50 text-blue-600 border border-blue-100 flex items-center gap-1">
+                              <Building2 className="w-2.5 h-2.5" />
+                              <span>{labObj.name}</span>
+                            </span>
+                          )}
+                          {dev.currentUser && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 flex items-center gap-1">
+                              <User className="w-2.5 h-2.5" />
+                              <span>{dev.currentUser}</span>
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-500 font-mono mt-0.5">
+                          CPU: {dev.cpu_percent != null ? dev.cpu_percent.toFixed(1) : '0.0'}% &nbsp;
+                          RAM: {dev.ram_percent != null ? dev.ram_percent.toFixed(1) : '0.0'}%
+                        </p>
+                      </div>
+                    </div>
+
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                        dev.currentUser
+                          ? 'bg-blue-600 text-white animate-pulse'
+                          : isSim
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'bg-emerald-100 text-emerald-700'
+                      }`}
+                    >
+                      {dev.currentUser ? 'In Use' : isSim ? 'Simulated' : 'Online'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* System Information (col-span-3) matching reference image */}
@@ -698,53 +679,57 @@ export const Dashboard: React.FC = () => {
           <div className="space-y-2.5 text-xs text-slate-600 divide-y divide-slate-100">
             <div className="flex items-center justify-between pt-1.5">
               <span className="text-slate-500 flex items-center gap-2">
-                <span>💻</span> Platform
+                <Monitor className="w-3.5 h-3.5 text-slate-500" /> Platform
               </span>
               <span className="font-semibold text-slate-900 text-right truncate max-w-[160px]">
-                {primaryNode?.system_type || (navigator.platform.includes('Win') ? 'Windows (NT)' : 'macOS (Darwin)')}
+                {primaryNode?.system_type || primaryNode?.platform || statusData?.platform || 'Windows (NT)'}
               </span>
             </div>
 
             <div className="flex items-center justify-between pt-2">
               <span className="text-slate-500 flex items-center gap-2">
-                <span>⚡</span> CPU
+                <Cpu className="w-3.5 h-3.5 text-blue-600" /> CPU
               </span>
               <span className="font-semibold text-slate-900 text-right truncate max-w-[160px]">
-                Apple M2 (8 cores)
+                {primaryNode?.cpu_model || (statusData?.hostname ? `${primaryNode?.cpu_count || 8} Cores` : 'x86_64 Architecture')}
               </span>
             </div>
 
             <div className="flex items-center justify-between pt-2">
               <span className="text-slate-500 flex items-center gap-2">
-                <span>💾</span> Memory
-              </span>
-              <span className="font-semibold text-slate-900">{ramTotalGb.toFixed(2)} GB</span>
-            </div>
-
-            <div className="flex items-center justify-between pt-2">
-              <span className="text-slate-500 flex items-center gap-2">
-                <span>🗄️</span> Storage
+                <Layers className="w-3.5 h-3.5 text-indigo-600" /> Memory
               </span>
               <span className="font-semibold text-slate-900">
-                494.38 GB (68% used)
+                {primaryNode?.ram_total_gb ? `${Number(primaryNode.ram_total_gb).toFixed(2)} GB` : '—'}
               </span>
             </div>
 
             <div className="flex items-center justify-between pt-2">
               <span className="text-slate-500 flex items-center gap-2">
-                <span>⏱️</span> Uptime
+                <HardDrive className="w-3.5 h-3.5 text-slate-600" /> Storage
               </span>
               <span className="font-semibold text-slate-900">
-                5 days, 11 hours
+                {primaryNode?.disk_total_gb
+                  ? `${Number(primaryNode.disk_total_gb).toFixed(1)} GB (${primaryNode.disk_percent ? Number(primaryNode.disk_percent).toFixed(0) : 0}% used)`
+                  : '—'}
               </span>
             </div>
 
             <div className="flex items-center justify-between pt-2">
               <span className="text-slate-500 flex items-center gap-2">
-                <span>🌐</span> Network
+                <Clock className="w-3.5 h-3.5 text-amber-500" /> Uptime
+              </span>
+              <span className="font-semibold text-slate-900">
+                {primaryNode?.uptime_formatted || (primaryNode?.uptime_seconds ? `${Math.floor(primaryNode.uptime_seconds / 3600)}h ${Math.floor((primaryNode.uptime_seconds % 3600) / 60)}m` : statusData?.uptime_seconds ? `${Math.floor(statusData.uptime_seconds / 3600)} hrs` : 'Active')}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between pt-2">
+              <span className="text-slate-500 flex items-center gap-2">
+                <Network className="w-3.5 h-3.5 text-emerald-600" /> Network
               </span>
               <span className="font-semibold text-slate-900 font-mono text-[11px] text-right truncate max-w-[160px]">
-                {primaryNode?.ip ? `${primaryNode.ip} (LAN)` : '192.168.1.10 (Ethernet)'}
+                {primaryNode?.ip ? `${primaryNode.ip} (LAN)` : statusData?.interfaces?.[0]?.ip ? `${statusData.interfaces[0].ip} (LAN)` : '127.0.0.1'}
               </span>
             </div>
           </div>
@@ -764,8 +749,9 @@ export const Dashboard: React.FC = () => {
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-lg font-bold text-slate-900">{activeModalNode.hostname}</h3>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
-                      🏛️ {labs.find(l => l.id === activeModalNode.labId)?.name || 'Unassigned Lab'}
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 flex items-center gap-1">
+                      <Building2 className="w-3 h-3" />
+                      <span>{labs.find(l => l.id === activeModalNode.labId)?.name || 'Unassigned Lab'}</span>
                     </span>
                     {activeModalNode.seat && (
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-800">
@@ -773,8 +759,9 @@ export const Dashboard: React.FC = () => {
                       </span>
                     )}
                     {activeModalNode.currentUser ? (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 animate-pulse">
-                        👤 Logged in: {activeModalNode.currentUser}
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 animate-pulse flex items-center gap-1">
+                        <User className="w-3 h-3" />
+                        <span>Logged in: {activeModalNode.currentUser}</span>
                       </span>
                     ) : (
                       <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
@@ -906,7 +893,8 @@ export const Dashboard: React.FC = () => {
                         (modalSessionsData?.sessions || []).map((s: any) => (
                           <tr key={s.id || s._id} className="hover:bg-slate-50/60 font-sans">
                             <td className="p-3 font-bold text-slate-900 flex items-center gap-1.5">
-                              <span>👤</span> {s.username}
+                              <User className="w-3.5 h-3.5 text-blue-600" />
+                              <span>{s.username}</span>
                             </td>
                             <td className="p-3 font-mono text-[11px] text-slate-500">
                               {new Date(s.loginAt).toLocaleString()}

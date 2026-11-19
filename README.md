@@ -23,12 +23,11 @@ The entire frontend has been redesigned to deliver a light-mode aesthetic matchi
 
 ### 2. Primary Navigation Views (Sidebar & Lab Hub)
 Reflecting the streamlined layout and the College Lab Management Extension:
-1. **`Fleet Overview` (`/`)**: Comprehensive real-time dashboard displaying host telemetry, AreaCharts, Donut resource distribution, recent alerts, top processes with application vector brand icons, monitored workstations with lab badges & active student tags, and system hardware specifications.
+1. **`Dashboard` (`/`)**: Comprehensive real-time dashboard powered 100% by live backend telemetry without mock data — displaying live host CPU load, real RAM allocation, live process count, active alert feeds, dynamic historical AreaCharts, Donut resource distribution, top monitored processes with vector brand icons, connected workstations with lab badges & active student tags, and true host system hardware specifications.
 2. **`Computer Labs` (`/labs`)**: Department lab allocation hub containing dedicated sub-sections for each individual computer lab room:
-   * **`Live Seat Map`**: Real-time visual seat map (Green = Available, Blue = In Use by student, Grey = Offline), with direct desktop shortcut buttons (`Reports`, `Software`) to jump straight to that workstation's telemetry or application inventory.
+   * **`Live Seat Map`**: Real-time visual seat map (Green = Available, Blue = In Use by student, Grey = Offline), with direct desktop shortcut buttons (`Reports`, `Software`) to jump straight to that workstation's telemetry or application inventory, and lab-scoped `+ Add Node` support.
    * **`Daily Reports`**: Daily performance and hardware audit reports scoped specifically to the workstations in that lab, featuring instant on-demand report generation, workstation filters, and Excel (`.xlsx`) / CSV export downloads.
    * **`Software Inventory`**: Deep application inventory scoped per lab workstation, with search filtering, category pills (`All`, `Desktop Apps`, `Development`, `System`, `Snap`), "Rescan Workstation" trigger, and Excel (`.xlsx`) / CSV exports.
-   * **`Remote Commands`**: Lab-wide administrative controls (Shutdown, Restart, Lock Screens, Log Off Users, Broadcast Announcement) with typed safety confirmations and command history audit trail.
    * **`Schedules`**: Time-based lab schedules for automated end-of-day shutdowns, screen locks, or class reminder announcements.
 
 ---

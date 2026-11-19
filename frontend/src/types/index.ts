@@ -41,6 +41,11 @@ export interface NodeInfo {
   labId?: string | null;
   seat?: number | null;
   currentUser?: string | null;
+  platform?: string;
+  cpu_model?: string;
+  cpu_count?: number;
+  uptime_seconds?: number;
+  uptime_formatted?: string;
 }
 
 export interface FleetSummary {
