@@ -21,17 +21,15 @@ The entire frontend has been redesigned to deliver a light-mode aesthetic matchi
 * **Sidebar Navigation**: Dedicated fixed left sidebar featuring the ProcessShield brand emblem, the 3 core application views, and the live "System Online" device counter pill.
 * **Top Header**: Global search bar with `⌘K` keyboard shortcut, `+ Add Node` quick modal trigger, live `Atlas: Active` database status pill, alert notification bell with red dot, and administrator profile dropdown.
 
-### 2. Primary Navigation Views (Sidebar)
-Reflecting the architecture in `ProcessShield-main/web/index.html` and streamlined with the College Lab Management Extension:
-1. **`🖥️ Fleet Overview` (`/`)**: Comprehensive real-time dashboard displaying host telemetry, AreaCharts, Donut resource distribution, recent alerts, top processes with application icons, monitored workstations with lab badges & active student tags, and system hardware specifications.
-2. **`🏛️ Computer Labs` (`/labs`)**: Department lab allocation hub containing dedicated sub-sections for each individual computer lab room:
-   * **`🖥️ Live Seat Map`**: Real-time visual seat map (Green = Available, Blue = In Use by student, Grey = Offline), with direct desktop shortcut buttons (`📋 Reports`, `📦 Software`) to jump straight to that workstation's telemetry or application inventory.
-   * **`📋 Daily Reports`**: Daily performance and hardware audit reports scoped specifically to the workstations in that lab, including 7-day active hour trends, weekday peak-hours heatmaps, machine utilization ranking, on-demand report generation, and Excel/CSV downloads.
-   * **`📦 Installed Software Inventory`**: Deep application inventory scoped per lab workstation, with search filtering, category pills (`All`, `Desktop Apps`, `Development`, `System`, `Snap`), "Rescan Workstation" trigger, and Excel (`.xlsx`) / CSV exports.
-   * **`⚡ Remote Commands`**: Lab-wide administrative controls (Shutdown, Restart, Lock Screens, Log Off Users, Broadcast Announcement) with typed safety confirmations and command history audit trail.
-   * **`🛡️ Process Policies`**: Classroom blocklist and allowlist enforcement with automated process termination or alert-only logging and protected system processes safeguarding.
-   * **`⏰ Automated Schedules`**: Time-based lab schedules for automated end-of-day shutdowns, screen locks, or class reminder announcements.
-   * **`👥 Student Sessions`**: Real-time student login/logout occupancy tracking, active duration timers, search filters, and session CSV export.
+### 2. Primary Navigation Views (Sidebar & Lab Hub)
+Reflecting the streamlined layout and the College Lab Management Extension:
+1. **`Fleet Overview` (`/`)**: Comprehensive real-time dashboard displaying host telemetry, AreaCharts, Donut resource distribution, recent alerts, top processes with application vector brand icons, monitored workstations with lab badges & active student tags, and system hardware specifications.
+2. **`Computer Labs` (`/labs`)**: Department lab allocation hub containing dedicated sub-sections for each individual computer lab room:
+   * **`Live Seat Map`**: Real-time visual seat map (Green = Available, Blue = In Use by student, Grey = Offline), with direct desktop shortcut buttons (`Reports`, `Software`) to jump straight to that workstation's telemetry or application inventory.
+   * **`Daily Reports`**: Daily performance and hardware audit reports scoped specifically to the workstations in that lab, featuring instant on-demand report generation, workstation filters, and Excel (`.xlsx`) / CSV export downloads.
+   * **`Software Inventory`**: Deep application inventory scoped per lab workstation, with search filtering, category pills (`All`, `Desktop Apps`, `Development`, `System`, `Snap`), "Rescan Workstation" trigger, and Excel (`.xlsx`) / CSV exports.
+   * **`Remote Commands`**: Lab-wide administrative controls (Shutdown, Restart, Lock Screens, Log Off Users, Broadcast Announcement) with typed safety confirmations and command history audit trail.
+   * **`Schedules`**: Time-based lab schedules for automated end-of-day shutdowns, screen locks, or class reminder announcements.
 
 ---
 

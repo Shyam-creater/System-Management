@@ -19,6 +19,7 @@ import {
   Sparkles,
   UserCheck,
   Building,
+  Building2,
   RefreshCw,
   Power,
   RotateCcw,
@@ -26,6 +27,8 @@ import {
   LogOut,
   MessageSquare,
   ShieldAlert,
+  ShieldCheck,
+  Ban,
   Calendar,
   X,
   Check,
@@ -35,8 +38,11 @@ import {
   Package,
   FileSpreadsheet,
   Flame,
-  Zap
+  Zap,
+  Layers,
+  User
 } from 'lucide-react';
+import { PlatformIcon } from '../components/common/PlatformIcon';
 import {
   AreaChart,
   Area,
@@ -74,7 +80,7 @@ export const Labs: React.FC = () => {
 
   // Selected lab & active sub-tab
   const [selectedLabId, setSelectedLabId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'seatmap' | 'reports' | 'software' | 'commands' | 'policies' | 'schedules' | 'sessions' | 'unassigned'>('seatmap');
+  const [activeTab, setActiveTab] = useState<'seatmap' | 'reports' | 'software' | 'commands' | 'schedules'>('seatmap');
 
   // Sub-view specific filters & selectors for lab systems
   const [selectedReportNodeId, setSelectedReportNodeId] = useState<string | null>(null);
@@ -159,11 +165,10 @@ export const Labs: React.FC = () => {
   const { data: unassignedData } = useQuery({
     queryKey: ['unassignedNodes'],
     queryFn: labsApi.getUnassignedNodes,
-    enabled: activeTab === 'unassigned',
-    refetchInterval: 5000
+    enabled: false
   });
 
-  const { data: sessionsData, isLoading: isSessionsLoading } = useQuery({
+  const { data: sessionsData } = useQuery({
     queryKey: ['sessions', activeLabId, sessionUserSearch, sessionActiveOnly],
     queryFn: () =>
       sessionsApi.getSessions({
@@ -172,7 +177,7 @@ export const Labs: React.FC = () => {
         active: sessionActiveOnly ? true : undefined,
         limit: 50
       }),
-    refetchInterval: 5000
+    enabled: false
   });
 
   const { data: commandsData } = useQuery({
@@ -185,15 +190,13 @@ export const Labs: React.FC = () => {
   const { data: policiesData } = useQuery({
     queryKey: ['labPolicies', activeLabId],
     queryFn: () => (activeLabId ? policiesApi.getPolicies(activeLabId) : null),
-    enabled: activeTab === 'policies',
-    refetchInterval: 6000
+    enabled: false
   });
 
   const { data: violationsData } = useQuery({
     queryKey: ['labViolations', activeLabId],
     queryFn: () => policiesApi.getViolations({ labId: activeLabId || undefined, limit: 50 }),
-    enabled: activeTab === 'policies',
-    refetchInterval: 5000
+    enabled: false
   });
 
   const { data: schedulesData } = useQuery({
@@ -484,7 +487,7 @@ export const Labs: React.FC = () => {
       )}
 
       {/* 1. TOP METRIC STATS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
         <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex items-center justify-between">
           <div>
             <span className="text-xs font-semibold text-slate-500">Configured Labs</span>
@@ -522,19 +525,6 @@ export const Labs: React.FC = () => {
             <Users className="w-6 h-6" />
           </div>
         </div>
-
-        <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex items-center justify-between">
-          <div>
-            <span className="text-xs font-semibold text-slate-500">Unassigned Machines</span>
-            <div className="text-3xl font-extrabold text-slate-900 mt-1">{unassignedCount}</div>
-            <span className="text-[11px] font-medium text-amber-600 mt-0.5 block">
-              Awaiting Lab Association
-            </span>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
-            <Tag className="w-6 h-6" />
-          </div>
-        </div>
       </div>
 
       {/* 2. LAB TABS & CREATION BAR */}
@@ -542,13 +532,12 @@ export const Labs: React.FC = () => {
         {/* Lab Buttons */}
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
           {labs.map((lab) => {
-            const isSelected = lab.id === activeLabId && activeTab !== 'unassigned';
+            const isSelected = lab.id === activeLabId;
             return (
               <button
                 key={lab.id}
                 onClick={() => {
                   setSelectedLabId(lab.id);
-                  if (activeTab === 'unassigned') setActiveTab('seatmap');
                 }}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shrink-0 ${
                   isSelected
@@ -556,7 +545,7 @@ export const Labs: React.FC = () => {
                     : 'bg-slate-50 text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/60'
                 }`}
               >
-                <span>🏛️</span>
+                <Building2 className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : 'text-blue-600'}`} />
                 <span>{lab.name}</span>
                 <span
                   className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
@@ -571,22 +560,6 @@ export const Labs: React.FC = () => {
               </button>
             );
           })}
-
-          {/* Unassigned Tab */}
-          <button
-            onClick={() => setActiveTab('unassigned')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shrink-0 ${
-              activeTab === 'unassigned'
-                ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25 font-bold'
-                : 'bg-slate-50 text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/60'
-            }`}
-          >
-            <span>📦</span>
-            <span>Unassigned</span>
-            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800">
-              {unassignedCount}
-            </span>
-          </button>
         </div>
 
         {/* Create Lab Action Button */}
@@ -600,78 +573,63 @@ export const Labs: React.FC = () => {
       </div>
 
       {/* 3. SUB-VIEW TABS & LAB ACTIONS HEADER */}
-      {activeTab !== 'unassigned' && currentLab && (
+      {currentLab && (
         <div className="flex flex-wrap items-center justify-between border-b border-slate-200 pb-2 gap-3">
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
             <button
               onClick={() => setActiveTab('seatmap')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 ${
                 activeTab === 'seatmap'
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
               }`}
             >
-              🖥️ Live Seat Map
+              <Monitor className="w-3.5 h-3.5" />
+              <span>Live Seat Map</span>
             </button>
             <button
               onClick={() => setActiveTab('reports')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 ${
                 activeTab === 'reports'
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
               }`}
             >
-              📋 Daily Reports ({labReports.length})
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span>Daily Reports ({labReports.length})</span>
             </button>
             <button
               onClick={() => setActiveTab('software')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 ${
                 activeTab === 'software'
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
               }`}
             >
-              📦 Software Inventory
+              <Package className="w-3.5 h-3.5" />
+              <span>Software Inventory</span>
             </button>
             <button
               onClick={() => setActiveTab('commands')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 ${
                 activeTab === 'commands'
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
               }`}
             >
-              ⚡ Remote Commands ({commands.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('policies')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 ${
-                activeTab === 'policies'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
-              }`}
-            >
-              🛡️ Process Policies ({policies.length})
+              <Zap className="w-3.5 h-3.5" />
+              <span>Remote Commands ({commands.length})</span>
             </button>
             <button
               onClick={() => setActiveTab('schedules')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 ${
                 activeTab === 'schedules'
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
               }`}
             >
-              ⏰ Schedules ({schedules.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('sessions')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 ${
-                activeTab === 'sessions'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
-              }`}
-            >
-              👥 Student Sessions ({sessions.length})
+              <Clock className="w-3.5 h-3.5" />
+              <span>Schedules ({schedules.length})</span>
             </button>
           </div>
 
@@ -683,8 +641,9 @@ export const Labs: React.FC = () => {
                 onClick={() => setIsActionMenuOpen(!isActionMenuOpen)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition active:scale-95"
               >
-                <span>⚡ Lab Actions</span>
-                <span className="text-[10px]">▼</span>
+                <Zap className="w-3.5 h-3.5 text-amber-300" />
+                <span>Lab Actions</span>
+                <span className="text-[10px] ml-0.5">▼</span>
               </button>
 
               {isActionMenuOpen && (
@@ -763,9 +722,10 @@ export const Labs: React.FC = () => {
                 setPrefixInput(currentLab.prefix || '');
                 setIsAssignPrefixOpen(true);
               }}
-              className="text-xs font-semibold text-slate-600 hover:text-blue-600 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-blue-50 border border-slate-200 transition"
+              className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-blue-600 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-blue-50 border border-slate-200 transition"
             >
-              🏷️ Prefix Bind
+              <Tag className="w-3.5 h-3.5 text-slate-500" />
+              <span>Prefix Bind</span>
             </button>
             <button
               onClick={() => {
@@ -773,10 +733,10 @@ export const Labs: React.FC = () => {
                   deleteLabMutation.mutate(currentLab.id);
                 }
               }}
-              className="text-xs font-semibold text-rose-600 hover:text-rose-700 px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 transition"
+              className="flex items-center gap-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 transition"
             >
-              <Trash2 className="w-3.5 h-3.5 inline mr-1" />
-              Delete Lab
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete Lab</span>
             </button>
           </div>
         </div>
@@ -789,7 +749,8 @@ export const Labs: React.FC = () => {
           <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-wrap items-center justify-between gap-4">
             <div>
               <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                <span>🏛️</span> {currentLab.name}
+                <Building2 className="w-5 h-5 text-blue-600" />
+                <span>{currentLab.name}</span>
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
                 {currentLab.description || 'General Computer Lab'} • Capacity: {currentLab.capacity || 30} Seats
@@ -820,7 +781,7 @@ export const Labs: React.FC = () => {
               <Monitor className="w-12 h-12 text-slate-300 mx-auto mb-3" />
               <h3 className="text-base font-bold text-slate-800">No Desktops Assigned to {currentLab.name}</h3>
               <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-                Use "Prefix Bind" to associate computers starting with a common hostname prefix, or assign machines from the Unassigned tab.
+                Use "Prefix Bind" to associate computers starting with a common hostname prefix to this lab.
               </p>
               <div className="mt-4 flex items-center justify-center gap-3">
                 <button
@@ -828,12 +789,6 @@ export const Labs: React.FC = () => {
                   className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition"
                 >
                   Assign by Hostname Prefix
-                </button>
-                <button
-                  onClick={() => setActiveTab('unassigned')}
-                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition"
-                >
-                  View Unassigned Desktops
                 </button>
               </div>
             </div>
@@ -882,10 +837,10 @@ export const Labs: React.FC = () => {
                       </div>
 
                       {/* Computer Hostname & IP */}
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xl">
-                          {node.hostname.includes('Ubuntu') ? '🐧' : node.hostname.includes('Mac') ? '' : node.is_simulated ? '📦' : '💻'}
-                        </span>
+                      <div className="flex items-center gap-2.5 mb-2">
+                        <div className="w-8 h-8 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-center shrink-0 shadow-sm">
+                          <PlatformIcon hostname={node.hostname} isSimulated={node.is_simulated} size={18} />
+                        </div>
                         <div className="min-w-0">
                           <h4 className="text-xs font-bold text-slate-900 truncate" title={node.hostname}>
                             {node.hostname}
@@ -956,7 +911,8 @@ export const Labs: React.FC = () => {
           <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-wrap items-center justify-between gap-4">
             <div>
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <span>📋</span> Daily Performance & Telemetry Reports — {currentLab.name}
+                <BarChart3 className="w-5 h-5 text-blue-600" />
+                <span>Daily Performance & Telemetry Reports — {currentLab.name}</span>
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
                 Automated hardware snapshots, peak CPU/RAM audits, and weekly session occupancy for this lab
@@ -1009,128 +965,6 @@ export const Labs: React.FC = () => {
                 <Download className="w-3.5 h-3.5" />
                 <span>Export CSV</span>
               </a>
-            </div>
-          </div>
-
-          {/* Metric Stats Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm">
-              <span className="text-[11px] font-semibold text-slate-400 block">7-Day Sessions</span>
-              <span className="text-2xl font-extrabold text-blue-600 mt-1 block">{totalSessions7d}</span>
-              <span className="text-[10px] text-slate-400 mt-0.5 block">Student Logins</span>
-            </div>
-            <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm">
-              <span className="text-[11px] font-semibold text-slate-400 block">Total Lab Hours</span>
-              <span className="text-2xl font-extrabold text-slate-900 mt-1 block">{totalHours7d.toFixed(1)} hrs</span>
-              <span className="text-[10px] text-emerald-600 mt-0.5 block">Occupancy Time</span>
-            </div>
-            <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm">
-              <span className="text-[11px] font-semibold text-slate-400 block">Lab Workstations</span>
-              <span className="text-2xl font-extrabold text-indigo-600 mt-1 block">{machines.length}</span>
-              <span className="text-[10px] text-slate-400 mt-0.5 block">{onlineInCurrentLab} Online Desktops</span>
-            </div>
-            <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm">
-              <span className="text-[11px] font-semibold text-slate-400 block">Audited Snapshots</span>
-              <span className="text-2xl font-extrabold text-slate-900 mt-1 block">{displayReports.length}</span>
-              <span className="text-[10px] text-slate-400 mt-0.5 block">Daily Records</span>
-            </div>
-          </div>
-
-          {/* Charts & Heatmap Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            {/* 7-Day Usage Trend Chart */}
-            <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-3">
-              <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                <BarChart3 className="w-3.5 h-3.5 text-blue-600" />
-                <span>7-Day Utilization Trend (Active Hours)</span>
-              </h3>
-              <div className="h-60 w-full pt-2">
-                {usageDays.length === 0 ? (
-                  <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                    No session usage history recorded in the past 7 days.
-                  </div>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={usageDays} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="labUsageHoursGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#1d68ff" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="#1d68ff" stopOpacity={0.0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: '#ffffff',
-                          borderRadius: '12px',
-                          border: '1px solid #e2e8f0',
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                          fontSize: '12px'
-                        }}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="hours"
-                        name="Active Hours"
-                        stroke="#1d68ff"
-                        strokeWidth={2.5}
-                        fillOpacity={1}
-                        fill="url(#labUsageHoursGrad)"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            </div>
-
-            {/* Peak-Hours Heatmap */}
-            <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-3">
-              <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                <Flame className="w-3.5 h-3.5 text-amber-500" />
-                <span>Peak-Hours Occupancy Heatmap</span>
-              </h3>
-              <p className="text-[11px] text-slate-400">Activity volume distribution by weekday and time slot</p>
-              <div className="overflow-x-auto pt-2">
-                <table className="w-full text-center border-separate border-spacing-1.5">
-                  <thead>
-                    <tr>
-                      <th className="text-[10px] font-semibold text-slate-400 text-left pb-1">Day</th>
-                      {heatmapSlots.map((s, idx) => (
-                        <th key={idx} className="text-[10px] font-semibold text-slate-400 pb-1">{s.label}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {heatmapDays.map((day, dIdx) => (
-                      <tr key={day}>
-                        <td className="text-xs font-bold text-slate-600 text-left pr-2">{day}</td>
-                        {heatmapSlots.map((_, sIdx) => {
-                          const val = heatmapMatrix[dIdx][sIdx];
-                          const ratio = val / maxHeatVal;
-                          const bg = val === 0
-                            ? 'bg-slate-100 text-slate-400'
-                            : ratio > 0.6
-                            ? 'bg-blue-600 text-white font-bold'
-                            : ratio > 0.3
-                            ? 'bg-blue-300 text-blue-950 font-semibold'
-                            : 'bg-blue-100 text-blue-800 font-semibold';
-                          return (
-                            <td
-                              key={sIdx}
-                              className={`h-9 rounded-xl text-xs transition select-none ${bg}`}
-                              title={`${day} ${heatmapSlots[sIdx].label}: ${val} sessions`}
-                            >
-                              {val > 0 ? val : '·'}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
             </div>
           </div>
 
@@ -1210,7 +1044,8 @@ export const Labs: React.FC = () => {
           <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-wrap items-center justify-between gap-4">
             <div>
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <span>📦</span> Installed Software Inventory — {currentLab.name}
+                <Package className="w-5 h-5 text-blue-600" />
+                <span>Installed Software Inventory — {currentLab.name}</span>
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
                 Audit installed applications, compiler toolchains, package versions, and system libraries on lab desktops
@@ -1231,7 +1066,7 @@ export const Labs: React.FC = () => {
                   ) : (
                     machines.map((m) => (
                       <option key={m.node_id} value={m.node_id}>
-                        {m.hostname} (Seat #{m.seat ?? '—'}) {m.isOnline ? '🟢' : '⚪'}
+                        {m.hostname} (Seat #{m.seat ?? '—'}) {m.isOnline ? '● Online' : '○ Offline'}
                       </option>
                     ))
                   )}
@@ -1398,7 +1233,8 @@ export const Labs: React.FC = () => {
           <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-wrap items-center justify-between gap-4">
             <div>
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <span>⚡</span> Remote Command History for {currentLab.name}
+                <Zap className="w-5 h-5 text-amber-500" />
+                <span>Remote Command History for {currentLab.name}</span>
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
                 Audit trail of administrative lab-wide shutdowns, restarts, screen locks, and broadcast messages
@@ -1408,21 +1244,24 @@ export const Labs: React.FC = () => {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setCommandAction('message')}
-                className="px-3 py-1.5 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 text-xs font-semibold border border-blue-200 transition"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 text-xs font-semibold border border-blue-200 transition"
               >
-                💬 Broadcast Message
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>Broadcast Message</span>
               </button>
               <button
                 onClick={() => setCommandAction('lock')}
-                className="px-3 py-1.5 rounded-xl bg-amber-50 text-amber-700 hover:bg-amber-100 text-xs font-semibold border border-amber-200 transition"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 text-amber-700 hover:bg-amber-100 text-xs font-semibold border border-amber-200 transition"
               >
-                🔒 Lock Lab
+                <Lock className="w-3.5 h-3.5" />
+                <span>Lock Lab</span>
               </button>
               <button
                 onClick={() => setCommandAction('shutdown')}
-                className="px-3 py-1.5 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs font-semibold border border-rose-200 transition"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs font-semibold border border-rose-200 transition"
               >
-                🔴 Shut Down Lab
+                <Power className="w-3.5 h-3.5" />
+                <span>Shut Down Lab</span>
               </button>
             </div>
           </div>
@@ -1498,142 +1337,14 @@ export const Labs: React.FC = () => {
         </div>
       )}
 
-      {/* 4. MAIN CONTENT AREA: TAB 3 - PROCESS POLICIES & VIOLATIONS */}
-      {activeTab === 'policies' && currentLab && (
-        <div className="space-y-6">
-          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <span>🛡️</span> Application & Process Policies for {currentLab.name}
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Blocklist unauthorized applications or enforce strict allowlists. Protected system processes are always guarded.
-              </p>
-            </div>
-
-            <button
-              onClick={() => {
-                setPolicyError(null);
-                setIsPolicyModalOpen(true);
-              }}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition active:scale-95"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Create Policy</span>
-            </button>
-          </div>
-
-          {/* Active Policies Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {policies.map((pol) => {
-              const isBlock = pol.mode === 'blocklist';
-              return (
-                <div
-                  key={pol._id || pol.id}
-                  className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col justify-between gap-4"
-                >
-                  <div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span
-                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                          isBlock ? 'bg-rose-50 text-rose-700 border border-rose-100' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                        }`}
-                      >
-                        {isBlock ? '🚫 BLOCKLIST' : '✅ ALLOWLIST'}
-                      </span>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => togglePolicyMutation.mutate({ id: pol._id || pol.id, enabled: !pol.enabled })}
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition ${
-                            pol.enabled ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
-                          }`}
-                        >
-                          {pol.enabled ? 'ACTIVE' : 'DISABLED'}
-                        </button>
-                        <button
-                          onClick={() => deletePolicyMutation.mutate(pol._id || pol.id)}
-                          className="text-slate-400 hover:text-rose-600 transition"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <h4 className="text-sm font-bold text-slate-900 mt-2">{pol.name}</h4>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Action: <span className="font-semibold text-slate-700 uppercase">{pol.action}</span>
-                      {pol.activeFrom && pol.activeTo ? ` • Hours: ${pol.activeFrom} - ${pol.activeTo}` : ' • 24/7 Enforced'}
-                    </p>
-
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {pol.processNames.map((p, pi) => (
-                        <span key={pi} className="px-2 py-0.5 rounded bg-slate-100 font-mono text-[10px] text-slate-700">
-                          {p}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Violations Table */}
-          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-3">
-            <h4 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-              <span>⚠️</span> Policy Violations Audit Feed ({violations.length})
-            </h4>
-
-            {violations.length === 0 ? (
-              <div className="py-8 text-center text-slate-400 text-xs">
-                No policy violations recorded for this lab. Systems are compliant.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs font-mono">
-                  <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
-                    <tr>
-                      <th className="p-2.5">Time</th>
-                      <th className="p-2.5">Student User</th>
-                      <th className="p-2.5">Workstation</th>
-                      <th className="p-2.5">Restricted Process</th>
-                      <th className="p-2.5">Action Taken</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {violations.map((v) => (
-                      <tr key={v._id || v.id} className="hover:bg-slate-50/50">
-                        <td className="p-2.5 text-slate-500">{new Date(v.createdAt).toLocaleTimeString()}</td>
-                        <td className="p-2.5 font-bold text-slate-800">{v.username}</td>
-                        <td className="p-2.5 text-slate-600">{v.nodeId}</td>
-                        <td className="p-2.5 text-rose-600 font-bold">{v.processName}</td>
-                        <td className="p-2.5">
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              v.action === 'killed' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
-                            }`}
-                          >
-                            {v.action.toUpperCase()}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* 4. MAIN CONTENT AREA: TAB 4 - AUTOMATED SCHEDULES */}
       {activeTab === 'schedules' && currentLab && (
         <div className="space-y-6">
           <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-wrap items-center justify-between gap-4">
             <div>
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <span>⏰</span> Automated Power & Management Schedules for {currentLab.name}
+                <Clock className="w-5 h-5 text-blue-600" />
+                <span>Automated Power & Management Schedules for {currentLab.name}</span>
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
                 Automated daily lab shutdowns, periodic screen locking, and warning announcements on set days & times
@@ -1702,180 +1413,43 @@ export const Labs: React.FC = () => {
         </div>
       )}
 
-      {/* 4. MAIN CONTENT AREA: TAB 5 - STUDENT LOGIN HISTORY */}
-      {activeTab === 'sessions' && (
-        <div className="space-y-4">
-          {/* Filters Bar */}
-          <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3 flex-1 min-w-[240px]">
-              <div className="relative flex-1 max-w-sm">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Search student username..."
-                  value={sessionUserSearch}
-                  onChange={(e) => setSessionUserSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-500 transition"
-                />
-              </div>
-
-              <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={sessionActiveOnly}
-                  onChange={(e) => setSessionActiveOnly(e.target.checked)}
-                  className="rounded text-blue-600 focus:ring-0"
-                />
-                <span>Active Only</span>
-              </label>
-            </div>
-
-            {/* CSV Export Button */}
-            <a
-              href={sessionsApi.getExportUrl({
-                labId: activeLabId || undefined,
-                username: sessionUserSearch || undefined,
-                active: sessionActiveOnly ? true : undefined
-              })}
-              download
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold text-xs transition shadow-sm"
-            >
-              <Download className="w-3.5 h-3.5 text-blue-600" />
-              <span>Export CSV</span>
-            </a>
-          </div>
-
-          {/* Sessions Table */}
-          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-hidden">
-            {sessions.length === 0 ? (
-              <div className="py-12 text-center text-slate-400">
-                <Clock className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                <p className="text-sm font-semibold">No student sessions found.</p>
-                <p className="text-xs text-slate-400 mt-1">Sessions will appear as users log in to lab computers.</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs font-mono">
-                  <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
-                    <tr>
-                      <th className="p-3">Student User</th>
-                      <th className="p-3">Workstation</th>
-                      <th className="p-3">Login Time</th>
-                      <th className="p-3">Logout Time</th>
-                      <th className="p-3">Duration</th>
-                      <th className="p-3">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {sessions.map((s) => (
-                      <tr key={s.id} className="hover:bg-slate-50/60 transition">
-                        <td className="p-3 font-sans font-bold text-slate-900 flex items-center gap-2">
-                          <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs">
-                            👤
-                          </span>
-                          <span>{s.username}</span>
-                        </td>
-                        <td className="p-3 text-slate-600">{s.nodeId}</td>
-                        <td className="p-3 text-slate-500">{new Date(s.loginAt).toLocaleString()}</td>
-                        <td className="p-3 text-slate-500">
-                          {s.logoutAt ? new Date(s.logoutAt).toLocaleString() : '—'}
-                        </td>
-                        <td className="p-3 font-semibold text-slate-700">
-                          {s.duration ? `${s.duration} min` : s.active ? 'Active' : '< 1 min'}
-                        </td>
-                        <td className="p-3">
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              s.active
-                                ? 'bg-blue-100 text-blue-700 animate-pulse'
-                                : 'bg-slate-100 text-slate-600'
-                            }`}
-                          >
-                            {s.active ? 'IN SESSION' : s.closedBy || 'COMPLETED'}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 4. MAIN CONTENT AREA: TAB 6 - UNASSIGNED FLEET */}
-      {activeTab === 'unassigned' && (
-        <div className="space-y-4">
-          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <span>📦</span> Unassigned Workstations ({unassignedData?.nodes?.length || 0})
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Computers currently reporting to ProcessShield without an assigned lab location.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {(unassignedData?.nodes || []).map((node: any) => (
-              <div
-                key={node.node_id}
-                className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm flex flex-col justify-between gap-3"
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-1">
-                    <span className="text-lg">
-                      {node.hostname.includes('Ubuntu') ? '🐧' : node.is_simulated ? '📦' : '💻'}
-                    </span>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        node.status === 'ONLINE' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
-                      }`}
-                    >
-                      {node.status}
-                    </span>
-                  </div>
-                  <h4 className="text-xs font-bold text-slate-900 truncate">{node.hostname}</h4>
-                  <p className="text-[10px] text-slate-400 font-mono truncate">{node.ip}</p>
-                </div>
-
-                <div className="pt-2 border-t border-slate-100">
-                  <label className="text-[10px] font-semibold text-slate-500 block mb-1">Assign to Lab:</label>
-                  <select
-                    defaultValue=""
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        assignBatchMutation.mutate({ nodeIds: [node.node_id], labId: e.target.value });
-                      }
-                    }}
-                    className="w-full text-xs font-semibold p-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 focus:outline-none cursor-pointer"
-                  >
-                    <option value="" disabled>Select Lab...</option>
-                    {labs.map((l) => (
-                      <option key={l.id} value={l.id}>{l.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* 5. MODAL: REMOTE COMMAND CONFIRMATION (PHASE 2) */}
       {commandAction && currentLab && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fadeIn">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                {commandAction === 'shutdown' ? '🔴 Confirm Lab Shutdown' :
-                 commandAction === 'restart' ? '🔄 Confirm Lab Restart' :
-                 commandAction === 'lock' ? '🔒 Lock All Screens' :
-                 commandAction === 'logoff' ? '🚪 Log Off Users' :
-                 commandAction === 'message' ? '💬 Broadcast Announcement' :
-                 '🛑 Abort Scheduled Shutdown'}
+                {commandAction === 'shutdown' ? (
+                  <>
+                    <Power className="w-4 h-4 text-rose-600" />
+                    <span>Confirm Lab Shutdown</span>
+                  </>
+                ) : commandAction === 'restart' ? (
+                  <>
+                    <RotateCcw className="w-4 h-4 text-indigo-600" />
+                    <span>Confirm Lab Restart</span>
+                  </>
+                ) : commandAction === 'lock' ? (
+                  <>
+                    <Lock className="w-4 h-4 text-amber-500" />
+                    <span>Lock All Screens</span>
+                  </>
+                ) : commandAction === 'logoff' ? (
+                  <>
+                    <LogOut className="w-4 h-4 text-indigo-600" />
+                    <span>Log Off Users</span>
+                  </>
+                ) : commandAction === 'message' ? (
+                  <>
+                    <MessageSquare className="w-4 h-4 text-blue-600" />
+                    <span>Broadcast Announcement</span>
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle className="w-4 h-4 text-emerald-600" />
+                    <span>Abort Scheduled Shutdown</span>
+                  </>
+                )}
               </h3>
               <button onClick={() => setCommandAction(null)} className="text-slate-400 hover:text-slate-600">
                 <X className="w-4 h-4" />
@@ -1967,128 +1541,6 @@ export const Labs: React.FC = () => {
                 }`}
               >
                 {dispatchCommandMutation.isPending ? 'Dispatching...' : 'Execute Lab Action'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 6. MODAL: CREATE POLICY (PHASE 3) */}
-      {isPolicyModalOpen && currentLab && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-900">Create Software / Process Policy</h3>
-              <button onClick={() => setIsPolicyModalOpen(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {policyError && (
-              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold">
-                {policyError}
-              </div>
-            )}
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Policy Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Block Gaming & Torrent Clients"
-                  value={policyName}
-                  onChange={(e) => setPolicyName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200"
-                />
-              </div>
-
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">Enforcement Mode</label>
-                <select
-                  value={policyMode}
-                  onChange={(e) => setPolicyMode(e.target.value as any)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200"
-                >
-                  <option value="blocklist">Blocklist (Terminate or Alert matching applications)</option>
-                  <option value="allowlist">Allowlist (Only permit specified software)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">
-                  Process Names (Comma-separated, e.g. steam.exe, discord.exe)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. steam.exe, utorrent.exe, bittorrent.exe"
-                  value={policyProcesses}
-                  onChange={(e) => setPolicyProcesses(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 font-mono"
-                />
-                <span className="text-[10px] text-slate-400 mt-0.5 block">
-                  Core OS processes (explorer, python, systemd) are protected and rejected.
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Action</label>
-                  <select
-                    value={policyAction}
-                    onChange={(e) => setPolicyAction(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200"
-                  >
-                    <option value="kill">Kill Process Immediately</option>
-                    <option value="alert_only">Alert Only (Record Warning)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Active Time Window</label>
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="text"
-                      placeholder="09:00"
-                      value={policyFrom}
-                      onChange={(e) => setPolicyFrom(e.target.value)}
-                      className="w-1/2 px-2 py-2 rounded-xl border border-slate-200 text-center font-mono"
-                    />
-                    <span>-</span>
-                    <input
-                      type="text"
-                      placeholder="17:00"
-                      value={policyTo}
-                      onChange={(e) => setPolicyTo(e.target.value)}
-                      className="w-1/2 px-2 py-2 rounded-xl border border-slate-200 text-center font-mono"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-              <button
-                onClick={() => setIsPolicyModalOpen(false)}
-                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold"
-              >
-                Cancel
-              </button>
-              <button
-                disabled={!policyName || !policyProcesses || createPolicyMutation.isPending}
-                onClick={() => {
-                  const names = policyProcesses.split(',').map(s => s.trim()).filter(Boolean);
-                  createPolicyMutation.mutate({
-                    labId: currentLab.id,
-                    name: policyName,
-                    mode: policyMode,
-                    processNames: names,
-                    action: policyAction,
-                    activeFrom: policyFrom || undefined,
-                    activeTo: policyTo || undefined
-                  });
-                }}
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 disabled:opacity-50"
-              >
-                {createPolicyMutation.isPending ? 'Saving...' : 'Save Policy'}
               </button>
             </div>
           </div>
