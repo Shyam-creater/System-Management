@@ -801,23 +801,19 @@
             </div>
 
             <div class="header-actions">
+                <button class="btn btn-primary" onclick="openAddComputerModal()" style="display:inline-flex; align-items:center; gap:6px; font-weight:700; background:#2563eb; color:#fff; padding:8px 16px; border-radius:6px; border:none; cursor:pointer; box-shadow:0 2px 10px rgba(37,99,235,0.35);">
+                    <span>➕</span> Add Computer (SSH)
+                </button>
                 <div class="server-pill">
                     <span class="pulse-dot"></span>
                     <span id="live-indicator">AUTO-POLLING 5s</span>
                 </div>
-                <button class="btn btn-secondary" id="btn-purge-nodes" onclick="purgeOfflineNodes()" title="Remove mock/dummy/offline test nodes">
-                    🧹 Remove Dummy / Offline Data
-                </button>
-                <button class="btn btn-secondary" id="btn-toggle-sim" onclick="toggleSimulationFleet()">
-                    ⚡ Toggle Simulated Fleet
-                </button>
             </div>
         </header>
 
         <!-- Main Navigation Bar -->
         <nav class="main-nav">
             <button class="nav-btn active" id="tab-nav-fleet" onclick="switchView('fleet')">🖥️ Fleet Overview</button>
-            <button class="nav-btn" id="tab-nav-automation" onclick="switchView('automation')">🤖 Automation Status</button>
             <button class="nav-btn" id="tab-nav-reports" onclick="switchView('reports')">📋 Daily Reports</button>
             <button class="nav-btn" id="tab-nav-software" onclick="switchView('software')">📦 Installed Software Inventory</button>
         </nav>
@@ -838,12 +834,6 @@
                     <div class="subtext">Physical Ethernet & LAN computers</div>
                 </div>
 
-                <div class="stat-card" style="--card-accent: #8b5cf6;">
-                    <div class="label">Simulated Nodes</div>
-                    <div class="value" id="stat-sim-nodes">0</div>
-                    <div class="subtext">Virtual test machines</div>
-                </div>
-
                 <div class="stat-card" style="--card-accent: #f59e0b;">
                     <div class="label">System Health Alerts</div>
                     <div class="value" id="stat-alerts">0</div>
@@ -852,19 +842,23 @@
             </div>
 
             <!-- Filter Tabs & Controls -->
-            <div class="controls-bar">
+            <div class="controls-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
                 <div class="tab-group">
                     <button class="tab-btn active" onclick="setFilter('all')">All Nodes (<span id="count-tab-all">0</span>)</button>
                     <button class="tab-btn" onclick="setFilter('real')">🖥️ Real Machines (<span id="count-tab-real">0</span>)</button>
-                    <button class="tab-btn" onclick="setFilter('simulated')">🧪 Simulated (<span id="count-tab-sim">0</span>)</button>
                     <button class="tab-btn" onclick="setFilter('alerts')">⚠️ Alerts (<span id="count-tab-alerts">0</span>)</button>
                 </div>
 
-                <div class="legend">
-                    <div class="legend-item"><span class="legend-dot" style="background:#10b981;"></span> Healthy</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#f59e0b;"></span> Warning</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#ef4444;"></span> Critical</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#64748b;"></span> Offline</div>
+                <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap;">
+                    <button class="btn btn-primary" onclick="openAddComputerModal()" style="display:inline-flex; align-items:center; gap:6px; font-weight:700; background:#0284c7; color:#fff; padding:7px 14px; border-radius:6px; border:none; cursor:pointer;">
+                        <span>➕</span> Add Lab Computer
+                    </button>
+                    <div class="legend">
+                        <div class="legend-item"><span class="legend-dot" style="background:#10b981;"></span> Healthy</div>
+                        <div class="legend-item"><span class="legend-dot" style="background:#f59e0b;"></span> Warning</div>
+                        <div class="legend-item"><span class="legend-dot" style="background:#ef4444;"></span> Critical</div>
+                        <div class="legend-item"><span class="legend-dot" style="background:#64748b;"></span> Offline</div>
+                    </div>
                 </div>
             </div>
 
@@ -878,247 +872,319 @@
             </div>
         </div>
 
-        <!-- VIEW 2: AUTOMATION STATUS -->
-        <div id="view-automation" class="view-section">
-            <div class="auto-grid">
-                <!-- 1. Master Server Daemon -->
-                <div class="auto-card">
-                    <div class="auto-card-header">
-                        <div class="auto-card-title">🛡️ Master Server Service</div>
-                        <span class="health-pill healthy" id="auto-srv-status">RUNNING</span>
+        <!-- VIEW 2: DAILY REPORTS -->
+        <div id="view-reports" class="view-section">
+            <!-- Level 1: Node Selector for Daily Reports -->
+            <div id="reports-node-list-container">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px; flex-wrap:wrap; gap:12px;">
+                    <div>
+                        <h2 style="font-size: 19px; font-weight: 700; display:flex; align-items:center; gap:8px;">
+                            <span>📋</span> Monitored Computers Daily Reports
+                        </h2>
+                        <p style="font-size: 13px; color: var(--text-secondary); margin-top:3px;">
+                            Select a monitored computer to inspect historical daily performance summaries, resource peaks, and uptime metrics.
+                        </p>
                     </div>
-                    <p class="auto-card-desc">HTTP/1.1 threaded telemetry collector listening on all interfaces for authorized agents.</p>
-                    <div class="auto-metric-box" id="auto-srv-box">
-                        <div>Port: 8080 | Bind: 0.0.0.0 (LAN)</div>
-                        <div>Uptime: Loading...</div>
-                    </div>
-                </div>
-
-                <!-- 2. UDP Discovery Engine -->
-                <div class="auto-card">
-                    <div class="auto-card-header">
-                        <div class="auto-card-title">📡 Network Auto-Discovery</div>
-                        <span class="health-pill healthy" id="auto-disc-status">ACTIVE</span>
-                    </div>
-                    <p class="auto-card-desc">Broadcasts UDP beacon on port 8081 allowing new client computers on Ethernet switch to connect with zero manual configuration.</p>
-                    <div class="auto-metric-box" id="auto-disc-box">
-                        <div>UDP Port: 8081 | Beacon: Every 4s</div>
-                        <div>Auto-Handshake: Supported</div>
+                    <div>
+                        <button class="btn btn-primary" onclick="triggerDailyReportGeneration()">
+                            ⚡ Generate Daily Report Now
+                        </button>
                     </div>
                 </div>
 
-                <!-- 3. SQLite Database -->
-                <div class="auto-card">
-                    <div class="auto-card-header">
-                        <div class="auto-card-title">💾 Persistent Database</div>
-                        <span class="health-pill healthy" id="auto-db-status">ACTIVE</span>
-                    </div>
-                    <p class="auto-card-desc">Persistent SQLite3 engine with Write-Ahead Logging (WAL) storing telemetry history, alerts, and node registrations.</p>
-                    <div class="auto-metric-box" id="auto-db-box">
-                        <div>Database: data/processshield.db</div>
-                        <div>Records: Loading...</div>
-                    </div>
+                <div class="nodes-grid" id="reports-nodes-grid">
+                    <!-- Populated dynamically with node cards -->
                 </div>
+            </div>
 
-                <!-- 4. Disconnection & Heartbeat -->
-                <div class="auto-card">
-                    <div class="auto-card-header">
-                        <div class="auto-card-title">⏱️ Offline Detection</div>
-                        <span class="health-pill healthy">ACTIVE</span>
-                    </div>
-                    <p class="auto-card-desc">Continuously monitors heartbeats. If a computer drops off the Ethernet switch for &gt; 15 seconds, its status is updated to OFFLINE.</p>
-                    <div class="auto-metric-box">
-                        <div>Heartbeat Cadence: 5 seconds</div>
-                        <div>Offline Threshold: 15 seconds (3 missed cycles)</div>
-                    </div>
-                </div>
-
-                <!-- 5. Daily Reporting -->
-                <div class="auto-card">
-                    <div class="auto-card-header">
-                        <div class="auto-card-title">📋 Automated Daily Reports</div>
-                        <span class="health-pill healthy">SCHEDULED</span>
-                    </div>
-                    <p class="auto-card-desc">Aggregates CPU, RAM, disk, uptime, and incidents into formal reports daily at midnight.</p>
-                    <div class="auto-metric-box">
-                        <div>Schedule: Daily at 00:00:00</div>
-                        <div style="margin-top:6px;">
-                            <button class="btn btn-primary" style="padding:4px 10px; font-size:11px;" onclick="triggerDailyReportGeneration()">
-                                ⚡ Generate Daily Report Now
-                            </button>
+            <!-- Level 2: Selected Node Daily Reports View -->
+            <div id="reports-detail-container" style="display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px; flex-wrap:wrap; gap:12px;">
+                    <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+                        <button class="btn btn-secondary" onclick="showReportsNodeList()" style="display:inline-flex; align-items:center; gap:6px; padding:7px 14px; font-size:13px; font-weight:600; background:#1e293b; border:1px solid #334155; color:#f1f5f9; cursor:pointer; border-radius:6px;">
+                            ← Back to Computers List
+                        </button>
+                        <div>
+                            <h2 style="font-size: 18px; font-weight: 700; display:flex; align-items:center; gap:8px;">
+                                <span>📋</span> Daily Reports: <span id="selected-reports-node-title" style="color:#38bdf8;">sjt418scope069</span>
+                            </h2>
+                            <p style="font-size: 13px; color: var(--text-secondary); margin-top:2px;" id="selected-reports-node-subtitle">
+                                Monitored Workstation Telemetry Summaries
+                            </p>
                         </div>
                     </div>
-                </div>
-
-                <!-- 6. Data Retention & Pruning -->
-                <div class="auto-card">
-                    <div class="auto-card-header">
-                        <div class="auto-card-title">🧹 Auto Data Pruner</div>
-                        <span class="health-pill healthy">PROTECTED</span>
-                    </div>
-                    <p class="auto-card-desc">Prevents disk exhaustion by automatically pruning raw 5-second samples older than 7 days while preserving daily reports forever.</p>
-                    <div class="auto-metric-box">
-                        <div>Raw Telemetry Retention: 7 Days</div>
-                        <div>Daily Summary Retention: Indefinite</div>
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <a id="btn-export-reports-csv" href="/api/export/excel?type=reports" class="btn btn-secondary" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px; background:#10b981; color:#fff; font-weight:600; padding:8px 14px; border-radius:6px;" download>
+                            📥 Download Excel (.csv)
+                        </a>
+                        <button class="btn btn-primary" onclick="triggerDailyReportGeneration()">
+                            ⚡ Generate Daily Report Now
+                        </button>
                     </div>
                 </div>
-            </div>
 
-            <!-- System Reboot Autostart Guide -->
-            <div class="auto-card" style="margin-top: 10px;">
-                <div class="auto-card-title">🔄 Automatic Service Startup on Reboot (macOS &amp; Linux)</div>
-                <p class="auto-card-desc">To run Master Server or Agents automatically as a background system daemon that restarts across reboots without logging in, run:</p>
-                
-                <div style="margin-top: 10px;">
-                    <strong style="font-size: 13px; color: #38bdf8;">macOS (LaunchAgent service):</strong>
-                    <div class="code-box">./scripts/install_macos_service.sh master   # Installs Master Server daemon
-./scripts/install_macos_service.sh agent    # Installs Client Agent daemon</div>
-                </div>
-
-                <div style="margin-top: 14px;">
-                    <strong style="font-size: 13px; color: #34d399;">Linux (Systemd service):</strong>
-                    <div class="code-box">sudo ./scripts/install_linux_service.sh master # Installs Master Server systemd service
-sudo ./scripts/install_linux_service.sh agent  # Installs Client Agent systemd service</div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>DATE</th>
+                                <th>HOSTNAME</th>
+                                <th>TYPE</th>
+                                <th>AVG CPU</th>
+                                <th>PEAK CPU</th>
+                                <th>AVG GPU</th>
+                                <th>PEAK GPU</th>
+                                <th>AVG RAM</th>
+                                <th>PEAK RAM</th>
+                                <th>STORAGE</th>
+                                <th>UPTIME</th>
+                                <th>ALERTS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="daily-reports-tbody">
+                            <tr><td colspan="12" style="text-align:center; padding: 24px;">No daily reports generated yet. Click "Generate Daily Report Now".</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
 
-        <!-- VIEW 3: DAILY REPORTS -->
-        <div id="view-reports" class="view-section">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px;">
-                <div>
-                    <h2 style="font-size: 18px; font-weight: 700;">Monitored Computers Daily Reports (Past 1 Week)</h2>
-                    <p style="font-size: 13px; color: var(--text-secondary);">Historical summaries of resource utilization, peak loads, uptime, and alerts for this machine.</p>
-                </div>
-                <div style="display:flex; gap:10px; align-items:center;">
-                    <a href="/api/export/excel?type=reports" class="btn btn-secondary" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px; background:#10b981; color:#fff; font-weight:600; padding:8px 14px; border-radius:6px;" download>
-                        📥 Download Excel (.csv)
-                    </a>
-                    <button class="btn btn-primary" onclick="triggerDailyReportGeneration()">
-                        ⚡ Generate Daily Report Now
-                    </button>
-                </div>
-            </div>
-
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>DATE</th>
-                            <th>HOSTNAME</th>
-                            <th>TYPE</th>
-                            <th>AVG CPU</th>
-                            <th>PEAK CPU</th>
-                            <th>AVG GPU</th>
-                            <th>PEAK GPU</th>
-                            <th>AVG RAM</th>
-                            <th>PEAK RAM</th>
-                            <th>STORAGE</th>
-                            <th>UPTIME</th>
-                            <th>ALERTS</th>
-                        </tr>
-                    </thead>
-                    <tbody id="daily-reports-tbody">
-                        <tr><td colspan="10" style="text-align:center; padding: 24px;">No daily reports generated yet. Click "Generate Daily Report Now".</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- VIEW 4: INSTALLED SOFTWARE INVENTORY -->
+        <!-- VIEW 3: INSTALLED SOFTWARE INVENTORY -->
         <div id="view-software" class="view-section">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px; flex-wrap:wrap; gap:12px;">
+            <!-- Level 1: Node Selector for Software Inventory -->
+            <div id="software-node-list-container">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px; flex-wrap:wrap; gap:12px;">
+                    <div>
+                        <h2 style="font-size: 19px; font-weight: 700; display:flex; align-items:center; gap:8px;">
+                            <span>📦</span> Installed Software &amp; Version Inventory
+                        </h2>
+                        <p style="font-size: 13px; color: var(--text-secondary); margin-top:3px;">
+                            Select a monitored computer to inspect installed desktop applications, development tools, system packages, and versions.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="nodes-grid" id="software-nodes-grid">
+                    <!-- Populated dynamically with node cards -->
+                </div>
+            </div>
+
+            <!-- Level 2: Selected Node Software View -->
+            <div id="software-detail-container" style="display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px; flex-wrap:wrap; gap:12px;">
+                    <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+                        <button class="btn btn-secondary" onclick="showSoftwareNodeList()" style="display:inline-flex; align-items:center; gap:6px; padding:7px 14px; font-size:13px; font-weight:600; background:#1e293b; border:1px solid #334155; color:#f1f5f9; cursor:pointer; border-radius:6px;">
+                            ← Back to Computers List
+                        </button>
+                        <div>
+                            <h2 style="font-size: 19px; font-weight: 700; display:flex; align-items:center; gap:8px;">
+                                <span>📦</span> Software Catalog: <span id="selected-software-node-title" style="color:#38bdf8;">sjt418scope069</span>
+                            </h2>
+                            <p style="font-size: 13px; color: var(--text-secondary); margin-top:3px;">
+                                System software audit for <strong style="color:var(--text-primary);" id="sw-host-label">Current System</strong>: 
+                                <span id="sw-count-badge" class="cat-badge cat-app" style="font-size:12px; font-weight:700;">0</span> applications detected.
+                            </p>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                        <button class="btn btn-secondary" id="btn-rescan-software" onclick="rescanSoftwareInventory()" style="display:inline-flex; align-items:center; gap:6px; font-weight:600; padding:8px 14px; border-radius:6px; background:#1e293b; border:1px solid #334155; color:#f1f5f9; cursor:pointer;">
+                            <span id="rescan-spinner">🔄</span> Rescan System
+                        </button>
+                        <a id="btn-export-sw-xlsx" href="/api/export/excel?type=software&format=xlsx" class="btn btn-primary" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px; background:#10b981; color:#fff; font-weight:700; padding:8px 16px; border-radius:6px; box-shadow:0 4px 12px rgba(16, 185, 129, 0.25);" title="Downloads Excel (.xlsx) with dedicated worksheets for each software category" download>
+                            📗 Export Category Sheets (.xlsx)
+                        </a>
+                        <a id="btn-export-sw-csv" href="/api/export/excel?type=software&format=csv" class="btn btn-secondary" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px; background:#334155; color:#cbd5e1; font-weight:600; padding:8px 12px; border-radius:6px;" download>
+                            📄 Export CSV
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Software Search & Filter Controls -->
+                <div style="margin-bottom: 16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; background:rgba(30,41,59,0.5); padding:12px 16px; border-radius:8px; border:1px solid var(--border-subtle);">
+                    <div style="flex:1; min-width:280px;">
+                        <input type="text" id="software-search-input" oninput="applySoftwareFilters()" placeholder="🔍 Search by Name, Publisher, Version, Path, or Category (e.g. Visual Studio, Chrome, JetBrains, Arduino)..." style="width:100%; background:#0f172a; color:#e2e8f0; border:1px solid #334155; border-radius:6px; padding:9px 14px; font-size:13px; outline:none;">
+                    </div>
+                    
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <label style="font-size:12px; color:var(--text-secondary); font-weight:600;">Category / Source:</label>
+                        <select id="software-source-filter" onchange="applySoftwareFilters()" style="background:#0f172a; color:#e2e8f0; border:1px solid #334155; border-radius:6px; padding:8px 12px; font-size:12px; outline:none;">
+                            <option value="all">All Software (Complete Fleet)</option>
+                            <option value="desktop">Desktop &amp; GUI Applications (VS Code, Chrome, etc.)</option>
+                            <option value="snap">Snap Applications</option>
+                            <option value="devel">Development &amp; IDEs</option>
+                            <option value="system">System Packages (dpkg/apt)</option>
+                        </select>
+                    </div>
+
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <label style="font-size:12px; color:var(--text-secondary); font-weight:600;">Sort By:</label>
+                        <select id="software-sort-select" onchange="applySoftwareFilters()" style="background:#0f172a; color:#e2e8f0; border:1px solid #334155; border-radius:6px; padding:8px 12px; font-size:12px; outline:none;">
+                            <option value="name_asc">Name (A → Z)</option>
+                            <option value="name_desc">Name (Z → A)</option>
+                            <option value="ver_desc">Version (High → Low)</option>
+                            <option value="publisher">Publisher / Vendor</option>
+                            <option value="category">Category</option>
+                            <option value="path_asc">Installation Path (A → Z)</option>
+                            <option value="path_desc">Installation Path (Z → A)</option>
+                            <option value="date_desc">Installation Date (Newest First)</option>
+                            <option value="date_asc">Installation Date (Oldest First)</option>
+                            <option value="source">Package Source</option>
+                        </select>
+                    </div>
+
+                    <div style="margin-left:auto;">
+                        <span id="software-filtered-count" style="font-size:12px; color:#94a3b8; font-weight:500;">Showing 0 applications</span>
+                    </div>
+                </div>
+
+                <!-- Table Container with Full Metadata Columns -->
+                <div class="table-container" style="overflow-x:auto;">
+                    <table style="width:100%; border-collapse:collapse;">
+                        <thead>
+                            <tr>
+                                <th style="width:45px; text-align:center;">#</th>
+                                <th style="cursor:pointer;" onclick="toggleSoftwareSort('name')">APPLICATION / SOFTWARE NAME ⬍</th>
+                                <th style="cursor:pointer;" onclick="toggleSoftwareSort('version')">CURRENT VERSION ⬍</th>
+                                <th style="cursor:pointer;" onclick="toggleSoftwareSort('publisher')">PUBLISHER / VENDOR ⬍</th>
+                                <th style="cursor:pointer;" onclick="toggleSoftwareSort('category')">CATEGORY ⬍</th>
+                                <th style="cursor:pointer;" onclick="toggleSoftwareSort('path')">INSTALLATION PATH / LOCATION ⬍</th>
+                                <th style="cursor:pointer;" onclick="toggleSoftwareSort('date')">INSTALL DATE ⬍</th>
+                                <th>SOURCE</th>
+                                <th>SUMMARY</th>
+                            </tr>
+                        </thead>
+                        <tbody id="installed-software-tbody">
+                            <tr><td colspan="9" style="text-align:center; padding: 32px; color:var(--text-secondary);">Scanning system package database &amp; desktop applications...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination Controls -->
+                <div id="software-pagination-bar" style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; padding:8px 4px; flex-wrap:wrap; gap:10px;">
+                    <div style="font-size:12px; color:var(--text-secondary);" id="software-page-info">Page 1 of 1</div>
+                    <div style="display:flex; gap:6px; align-items:center;">
+                        <button class="btn btn-secondary" id="btn-sw-prev" onclick="changeSoftwarePage(-1)" style="padding:5px 12px; font-size:12px;" disabled>&laquo; Previous</button>
+                        <span id="software-page-indicator" style="font-size:12px; padding:0 8px; color:var(--text-primary); font-weight:600;">1</span>
+                        <button class="btn btn-secondary" id="btn-sw-next" onclick="changeSoftwarePage(1)" style="padding:5px 12px; font-size:12px;">Next &raquo;</button>
+                        <select id="software-page-size" onchange="changeSoftwarePageSize()" style="margin-left:8px; background:#1e293b; color:#e2e8f0; border:1px solid #334155; border-radius:4px; padding:4px 8px; font-size:12px;">
+                            <option value="50">50 per page</option>
+                            <option value="100">100 per page</option>
+                            <option value="250">250 per page</option>
+                            <option value="all">Show All</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Computer (SSH) Modal -->
+    <div class="modal-overlay" id="add-computer-modal" onclick="closeAddModalOnOverlay(event)">
+        <div class="modal-content" style="max-width: 540px;">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <h2>➕ Connect Lab Computer (Agentless SSH)</h2>
+                    <p>Monitor remote Ubuntu lab computers directly via SSH without installing client agent software.</p>
+                </div>
+                <button class="modal-close" onclick="closeAddComputerModal()">&times;</button>
+            </div>
+            
+            <div class="modal-body" style="padding: 22px 24px; display:flex; flex-direction:column; gap:16px;">
+                <!-- Error / Success Banner -->
+                <div id="add-modal-alert" style="display:none; padding:12px 14px; border-radius:8px; font-size:13px; line-height:1.4;"></div>
+
+                <!-- Computer IP & Port -->
+                <div style="display:grid; grid-template-columns: 2fr 1fr; gap:12px;">
+                    <div>
+                        <label style="font-size:12px; font-weight:600; color:var(--text-secondary); display:block; margin-bottom:6px;">
+                            Computer IP Address <span style="color:#ef4444;">*</span>
+                        </label>
+                        <input type="text" id="add-ssh-ip" placeholder="e.g. 10.30.158.80" style="width:100%; background:#0f172a; color:#fff; border:1px solid #334155; border-radius:6px; padding:9px 12px; font-size:13px; outline:none;">
+                    </div>
+                    <div>
+                        <label style="font-size:12px; font-weight:600; color:var(--text-secondary); display:block; margin-bottom:6px;">
+                            SSH Port <span style="color:#ef4444;">*</span>
+                        </label>
+                        <input type="number" id="add-ssh-port" value="22" min="1" max="65535" style="width:100%; background:#0f172a; color:#fff; border:1px solid #334155; border-radius:6px; padding:9px 12px; font-size:13px; outline:none;">
+                    </div>
+                </div>
+
+                <!-- Computer Friendly Name / Label -->
                 <div>
-                    <h2 style="font-size: 19px; font-weight: 700; display:flex; align-items:center; gap:8px;">
-                        <span>📦</span> Installed Software &amp; Version Inventory
-                    </h2>
-                    <p style="font-size: 13px; color: var(--text-secondary); margin-top:3px;">
-                        System software audit for <strong style="color:var(--text-primary);" id="sw-host-label">Current System</strong>: 
-                        <span id="sw-count-badge" class="cat-badge cat-app" style="font-size:12px; font-weight:700;">0</span> total applications detected across Desktop, Snap, Flatpak, and System packages.
-                    </p>
+                    <label style="font-size:12px; font-weight:600; color:var(--text-secondary); display:block; margin-bottom:6px;">
+                        Computer Name / Hostname (Optional)
+                    </label>
+                    <input type="text" id="add-ssh-name" placeholder="Leave empty to auto-detect system hostname" style="width:100%; background:#0f172a; color:#fff; border:1px solid #334155; border-radius:6px; padding:9px 12px; font-size:13px; outline:none;">
                 </div>
-                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                    <button class="btn btn-secondary" id="btn-rescan-software" onclick="rescanSoftwareInventory()" style="display:inline-flex; align-items:center; gap:6px; font-weight:600; padding:8px 14px; border-radius:6px; background:#1e293b; border:1px solid #334155; color:#f1f5f9; cursor:pointer;">
-                        <span id="rescan-spinner">🔄</span> Rescan System
+
+                <!-- SSH Username -->
+                <div>
+                    <label style="font-size:12px; font-weight:600; color:var(--text-secondary); display:block; margin-bottom:6px;">
+                        SSH Username <span style="color:#ef4444;">*</span>
+                    </label>
+                    <input type="text" id="add-ssh-user" placeholder="e.g. ubuntu, adminuser, student" style="width:100%; background:#0f172a; color:#fff; border:1px solid #334155; border-radius:6px; padding:9px 12px; font-size:13px; outline:none;">
+                </div>
+
+                <!-- Authentication Method Selection -->
+                <div>
+                    <label style="font-size:12px; font-weight:600; color:var(--text-secondary); display:block; margin-bottom:8px;">
+                        Authentication Method <span style="color:#ef4444;">*</span>
+                    </label>
+                    <div style="display:flex; gap:18px;">
+                        <label style="font-size:13px; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                            <input type="radio" name="ssh_auth_type" value="password" checked onchange="toggleSSHAuthFields()">
+                            <span>🔑 Password</span>
+                        </label>
+                        <label style="font-size:13px; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                            <input type="radio" name="ssh_auth_type" value="key" onchange="toggleSSHAuthFields()">
+                            <span>🛡️ SSH Private Key</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Password Field -->
+                <div id="ssh-password-group">
+                    <label style="font-size:12px; font-weight:600; color:var(--text-secondary); display:block; margin-bottom:6px;">
+                        SSH Password
+                    </label>
+                    <div style="position:relative;">
+                        <input type="password" id="add-ssh-pass" placeholder="Enter remote SSH user password" style="width:100%; background:#0f172a; color:#fff; border:1px solid #334155; border-radius:6px; padding:9px 36px 9px 12px; font-size:13px; outline:none;">
+                        <button type="button" onclick="togglePassVisibility()" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; color:#94a3b8; cursor:pointer; font-size:14px;" title="Show/Hide Password">👁️</button>
+                    </div>
+                </div>
+
+                <!-- SSH Key Fields -->
+                <div id="ssh-key-group" style="display:none; flex-direction:column; gap:10px;">
+                    <div>
+                        <label style="font-size:12px; font-weight:600; color:var(--text-secondary); display:block; margin-bottom:6px;">
+                            Private Key Path on Master Server
+                        </label>
+                        <input type="text" id="add-ssh-keypath" placeholder="e.g. ~/.ssh/id_ed25519 or ~/.ssh/id_rsa" style="width:100%; background:#0f172a; color:#fff; border:1px solid #334155; border-radius:6px; padding:9px 12px; font-size:13px; outline:none;">
+                    </div>
+                    <div>
+                        <label style="font-size:12px; font-weight:600; color:var(--text-secondary); display:block; margin-bottom:6px;">
+                            Or Paste Private Key Text (OpenSSH format)
+                        </label>
+                        <textarea id="add-ssh-keytext" rows="3" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" style="width:100%; background:#0f172a; color:#fff; border:1px solid #334155; border-radius:6px; padding:8px 12px; font-size:12px; font-family:monospace; outline:none; resize:vertical;"></textarea>
+                    </div>
+                </div>
+
+                <!-- Security Guarantee Note -->
+                <div style="background:rgba(15,23,42,0.8); border:1px solid #1e293b; border-radius:8px; padding:10px 14px; font-size:12px; color:#94a3b8; display:flex; align-items:center; gap:8px;">
+                    <span>🔒</span>
+                    <span>Credentials are encrypted with AES-128-CBC + HMAC in the local vault and never logged or exposed.</span>
+                </div>
+            </div>
+
+            <div class="modal-footer" style="padding:16px 24px; border-top:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center; background:rgba(15,23,42,0.4);">
+                <button class="btn btn-secondary" onclick="testSSHConnection()" id="btn-ssh-test" style="display:inline-flex; align-items:center; gap:6px;">
+                    <span>🔍</span> Test Connection
+                </button>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-secondary" onclick="closeAddComputerModal()">Cancel</button>
+                    <button class="btn btn-primary" onclick="submitAddComputer()" id="btn-ssh-connect" style="background:#10b981; font-weight:700;">
+                        <span>⚡</span> Connect &amp; Monitor
                     </button>
-                    <a href="/api/export/excel?type=software&format=xlsx" class="btn btn-primary" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px; background:#10b981; color:#fff; font-weight:700; padding:8px 16px; border-radius:6px; box-shadow:0 4px 12px rgba(16, 185, 129, 0.25);" title="Downloads Excel (.xlsx) with dedicated worksheets for each software category" download>
-                        📗 Export Category Sheets (.xlsx)
-                    </a>
-                    <a href="/api/export/excel?type=software&format=csv" class="btn btn-secondary" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px; background:#334155; color:#cbd5e1; font-weight:600; padding:8px 12px; border-radius:6px;" download>
-                        📄 Export CSV
-                    </a>
-                </div>
-            </div>
-
-            <!-- Software Search & Filter Controls -->
-            <div style="margin-bottom: 16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; background:rgba(30,41,59,0.5); padding:12px 16px; border-radius:8px; border:1px solid var(--border-subtle);">
-                <div style="flex:1; min-width:280px;">
-                    <input type="text" id="software-search-input" oninput="applySoftwareFilters()" placeholder="🔍 Search by Name, Publisher, Version, Path, or Category (e.g. Visual Studio, Chrome, JetBrains, Arduino)..." style="width:100%; background:#0f172a; color:#e2e8f0; border:1px solid #334155; border-radius:6px; padding:9px 14px; font-size:13px; outline:none;">
-                </div>
-                
-                <div style="display:flex; gap:8px; align-items:center;">
-                    <label style="font-size:12px; color:var(--text-secondary); font-weight:600;">Category / Source:</label>
-                    <select id="software-source-filter" onchange="applySoftwareFilters()" style="background:#0f172a; color:#e2e8f0; border:1px solid #334155; border-radius:6px; padding:8px 12px; font-size:12px; outline:none;">
-                        <option value="all">All Software (Complete Fleet)</option>
-                        <option value="desktop">Desktop &amp; GUI Applications (VS Code, Chrome, etc.)</option>
-                        <option value="snap">Snap Applications</option>
-                        <option value="devel">Development &amp; IDEs</option>
-                        <option value="system">System Packages (dpkg/apt)</option>
-                    </select>
-                </div>
-
-                <div style="display:flex; gap:8px; align-items:center;">
-                    <label style="font-size:12px; color:var(--text-secondary); font-weight:600;">Sort By:</label>
-                    <select id="software-sort-select" onchange="applySoftwareFilters()" style="background:#0f172a; color:#e2e8f0; border:1px solid #334155; border-radius:6px; padding:8px 12px; font-size:12px; outline:none;">
-                        <option value="name_asc">Name (A → Z)</option>
-                        <option value="name_desc">Name (Z → A)</option>
-                        <option value="ver_desc">Version (High → Low)</option>
-                        <option value="publisher">Publisher / Vendor</option>
-                        <option value="source">Package Source</option>
-                        <option value="date_desc">Installation Date (Newest)</option>
-                    </select>
-                </div>
-
-                <div style="margin-left:auto;">
-                    <span id="software-filtered-count" style="font-size:12px; color:#94a3b8; font-weight:500;">Showing 0 applications</span>
-                </div>
-            </div>
-
-            <!-- Table Container with Full Metadata Columns -->
-            <div class="table-container" style="overflow-x:auto;">
-                <table style="width:100%; border-collapse:collapse;">
-                    <thead>
-                        <tr>
-                            <th style="width:45px; text-align:center;">#</th>
-                            <th style="cursor:pointer;" onclick="toggleSoftwareSort('name')">APPLICATION / SOFTWARE NAME ⬍</th>
-                            <th style="cursor:pointer;" onclick="toggleSoftwareSort('version')">CURRENT VERSION ⬍</th>
-                            <th style="cursor:pointer;" onclick="toggleSoftwareSort('publisher')">PUBLISHER / VENDOR ⬍</th>
-                            <th>CATEGORY</th>
-                            <th>INSTALLATION PATH / LOCATION</th>
-                            <th style="cursor:pointer;" onclick="toggleSoftwareSort('date')">INSTALL DATE ⬍</th>
-                            <th>SOURCE</th>
-                            <th>SUMMARY</th>
-                        </tr>
-                    </thead>
-                    <tbody id="installed-software-tbody">
-                        <tr><td colspan="9" style="text-align:center; padding: 32px; color:var(--text-secondary);">Scanning system package database &amp; desktop applications...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Pagination Controls -->
-            <div id="software-pagination-bar" style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; padding:8px 4px; flex-wrap:wrap; gap:10px;">
-                <div style="font-size:12px; color:var(--text-secondary);" id="software-page-info">Page 1 of 1</div>
-                <div style="display:flex; gap:6px; align-items:center;">
-                    <button class="btn btn-secondary" id="btn-sw-prev" onclick="changeSoftwarePage(-1)" style="padding:5px 12px; font-size:12px;" disabled>&laquo; Previous</button>
-                    <span id="software-page-indicator" style="font-size:12px; padding:0 8px; color:var(--text-primary); font-weight:600;">1</span>
-                    <button class="btn btn-secondary" id="btn-sw-next" onclick="changeSoftwarePage(1)" style="padding:5px 12px; font-size:12px;">Next &raquo;</button>
-                    <select id="software-page-size" onchange="changeSoftwarePageSize()" style="margin-left:8px; background:#1e293b; color:#e2e8f0; border:1px solid #334155; border-radius:4px; padding:4px 8px; font-size:12px;">
-                        <option value="50">50 per page</option>
-                        <option value="100">100 per page</option>
-                        <option value="250">250 per page</option>
-                        <option value="all">Show All</option>
-                    </select>
                 </div>
             </div>
         </div>
@@ -1256,6 +1322,8 @@ sudo ./scripts/install_linux_service.sh agent  # Installs Client Agent systemd s
         let activeModalNodeId = null;
         let activeModalTab = 'processes';
         let modalProcsFilter = 'all';
+        let selectedReportsNodeId = null;
+        let selectedSoftwareNodeId = null;
 
         function switchView(viewName) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
@@ -1264,19 +1332,209 @@ sudo ./scripts/install_linux_service.sh agent  # Installs Client Agent systemd s
             if (viewName === 'fleet') {
                 document.getElementById('view-fleet').classList.add('active');
                 document.getElementById('tab-nav-fleet').classList.add('active');
-            } else if (viewName === 'automation') {
-                document.getElementById('view-automation').classList.add('active');
-                document.getElementById('tab-nav-automation').classList.add('active');
-                fetchAutomationStatus();
             } else if (viewName === 'reports') {
                 document.getElementById('view-reports').classList.add('active');
                 document.getElementById('tab-nav-reports').classList.add('active');
-                fetchDailyReports();
+                if (!selectedReportsNodeId) {
+                    showReportsNodeList();
+                } else {
+                    fetchDailyReports(selectedReportsNodeId);
+                }
             } else if (viewName === 'software') {
                 document.getElementById('view-software').classList.add('active');
                 document.getElementById('tab-nav-software').classList.add('active');
-                fetchInstalledSoftware();
+                if (!selectedSoftwareNodeId) {
+                    showSoftwareNodeList();
+                } else {
+                    fetchInstalledSoftware(false, selectedSoftwareNodeId);
+                }
             }
+        }
+
+        function showReportsNodeList() {
+            selectedReportsNodeId = null;
+            const listContainer = document.getElementById('reports-node-list-container');
+            const detailContainer = document.getElementById('reports-detail-container');
+            if (listContainer) listContainer.style.display = 'block';
+            if (detailContainer) detailContainer.style.display = 'none';
+            renderReportsNodeList();
+        }
+
+        function selectReportsNode(nodeId, hostname) {
+            selectedReportsNodeId = nodeId;
+            const listContainer = document.getElementById('reports-node-list-container');
+            const detailContainer = document.getElementById('reports-detail-container');
+            if (listContainer) listContainer.style.display = 'none';
+            if (detailContainer) detailContainer.style.display = 'block';
+
+            const titleEl = document.getElementById('selected-reports-node-title');
+            if (titleEl) titleEl.textContent = hostname;
+            const subEl = document.getElementById('selected-reports-node-subtitle');
+            const node = nodesData[nodeId];
+            if (subEl && node) {
+                subEl.textContent = `IP: ${node.ip} | OS: ${node.system_type || 'Linux'} | Device: ${node.interface || 'eno1'}`;
+            }
+
+            const exportBtn = document.getElementById('btn-export-reports-csv');
+            if (exportBtn) {
+                exportBtn.href = `/api/export/excel?type=reports&node_id=${encodeURIComponent(nodeId)}`;
+            }
+
+            fetchDailyReports(nodeId);
+        }
+
+        function renderReportsNodeList() {
+            const grid = document.getElementById('reports-nodes-grid');
+            if (!grid) return;
+            const nodesList = Object.values(nodesData);
+            if (nodesList.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No Monitored Computers Connected</h3>
+                        <p>Launch the Automated Agent to register this computer with the Master Server.</p>
+                        <div class="code-box">python3 agent.py</div>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = nodesList.map(node => {
+                const isReal = !node.is_simulated;
+                const isSSH = !!node.is_ssh_agentless;
+                const isOffline = (node.status === 'OFFLINE');
+                const statusClass = isOffline ? 'offline' : (node.health || 'healthy').toLowerCase();
+                const healthLabel = isOffline ? 'OFFLINE' : (node.health || 'HEALTHY');
+
+                return `
+                    <div class="node-card" style="border-left: 4px solid #10b981;">
+                        <div class="node-header">
+                            <div class="node-title-group">
+                                <div class="node-name">
+                                    ${node.hostname}
+                                    ${isSSH ? '<span class="badge" style="background:rgba(6,182,212,0.18); color:#06b6d4; border:1px solid rgba(6,182,212,0.4);">★ SSH AGENTLESS</span>' : (isReal ? '<span class="badge badge-real">★ REAL SYSTEM</span>' : '<span class="badge badge-sim">NODE</span>')}
+                                </div>
+                                <div class="node-ip">
+                                    <span>🌐 IP: <strong>${node.ip}</strong></span>
+                                    ${node.interface ? `<span>Device: ${node.interface}</span>` : ''}
+                                    ${node.mac ? `<span>MAC: ${node.mac}</span>` : ''}
+                                </div>
+                            </div>
+                            <div class="health-pill ${statusClass}">
+                                <span class="legend-dot" style="background: currentColor;"></span>
+                                ${healthLabel}
+                            </div>
+                        </div>
+
+                        <div style="background: rgba(15,23,42,0.6); padding: 12px 14px; border-radius: 8px; border: 1px solid var(--border-subtle); display:flex; justify-content:space-between; font-size:12px; color:var(--text-secondary); flex-wrap:wrap; gap:8px;">
+                            <div><strong>OS:</strong> <span style="color:var(--text-primary);">${node.system_type || 'Linux'}</span></div>
+                            <div><strong>Active Processes:</strong> <span style="color:var(--text-primary);">${node.process_count || 0}</span></div>
+                            <div><strong>Physical RAM:</strong> <span style="color:var(--text-primary);">${(node.ram_used_gb || 0).toFixed(1)} / ${(node.ram_total_gb || 0).toFixed(1)} GB</span></div>
+                        </div>
+
+                        <div style="margin-top:auto; display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:12px; color:var(--text-secondary);">Last seen: ${node.last_seen_time || 'Active'}</span>
+                            <button class="btn btn-primary" onclick="selectReportsNode('${node.node_id}', '${node.hostname}')" style="display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:600; padding:8px 16px;">
+                                👁️ View Daily Reports &raquo;
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function showSoftwareNodeList() {
+            selectedSoftwareNodeId = null;
+            const listContainer = document.getElementById('software-node-list-container');
+            const detailContainer = document.getElementById('software-detail-container');
+            if (listContainer) listContainer.style.display = 'block';
+            if (detailContainer) detailContainer.style.display = 'none';
+            renderSoftwareNodeList();
+        }
+
+        function selectSoftwareNode(nodeId, hostname) {
+            selectedSoftwareNodeId = nodeId;
+            const listContainer = document.getElementById('software-node-list-container');
+            const detailContainer = document.getElementById('software-detail-container');
+            if (listContainer) listContainer.style.display = 'none';
+            if (detailContainer) detailContainer.style.display = 'block';
+
+            const titleEl = document.getElementById('selected-software-node-title');
+            if (titleEl) titleEl.textContent = hostname;
+            const hostLabel = document.getElementById('sw-host-label');
+            const node = nodesData[nodeId];
+            if (hostLabel && node) {
+                hostLabel.textContent = `${node.hostname} (${node.system_type || 'Linux'})`;
+            }
+
+            const exportXlsx = document.getElementById('btn-export-sw-xlsx');
+            if (exportXlsx) {
+                exportXlsx.href = `/api/export/excel?type=software&format=xlsx&node_id=${encodeURIComponent(nodeId)}`;
+            }
+            const exportCsv = document.getElementById('btn-export-sw-csv');
+            if (exportCsv) {
+                exportCsv.href = `/api/export/excel?type=software&format=csv&node_id=${encodeURIComponent(nodeId)}`;
+            }
+
+            fetchInstalledSoftware(false, nodeId);
+        }
+
+        function renderSoftwareNodeList() {
+            const grid = document.getElementById('software-nodes-grid');
+            if (!grid) return;
+            const nodesList = Object.values(nodesData);
+            if (nodesList.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No Monitored Computers Detected</h3>
+                        <p>Launch the Automated Agent to register this computer with the Master Server.</p>
+                        <div class="code-box">python3 agent.py</div>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = nodesList.map(node => {
+                const isReal = !node.is_simulated;
+                const isSSH = !!node.is_ssh_agentless;
+                const isOffline = (node.status === 'OFFLINE');
+                const statusClass = isOffline ? 'offline' : (node.health || 'healthy').toLowerCase();
+                const healthLabel = isOffline ? 'OFFLINE' : (node.health || 'HEALTHY');
+
+                return `
+                    <div class="node-card" style="border-left: 4px solid #38bdf8;">
+                        <div class="node-header">
+                            <div class="node-title-group">
+                                <div class="node-name">
+                                    ${node.hostname}
+                                    ${isSSH ? '<span class="badge" style="background:rgba(6,182,212,0.18); color:#06b6d4; border:1px solid rgba(6,182,212,0.4);">★ SSH AGENTLESS</span>' : (isReal ? '<span class="badge badge-real">★ REAL SYSTEM</span>' : '<span class="badge badge-sim">NODE</span>')}
+                                </div>
+                                <div class="node-ip">
+                                    <span>🌐 IP: <strong>${node.ip}</strong></span>
+                                    ${node.interface ? `<span>Device: ${node.interface}</span>` : ''}
+                                    ${node.mac ? `<span>MAC: ${node.mac}</span>` : ''}
+                                </div>
+                            </div>
+                            <div class="health-pill ${statusClass}">
+                                <span class="legend-dot" style="background: currentColor;"></span>
+                                ${healthLabel}
+                            </div>
+                        </div>
+
+                        <div style="background: rgba(15,23,42,0.6); padding: 12px 14px; border-radius: 8px; border: 1px solid var(--border-subtle); display:flex; justify-content:space-between; font-size:12px; color:var(--text-secondary); flex-wrap:wrap; gap:8px;">
+                            <div><strong>Architecture:</strong> <span style="color:var(--text-primary);">${node.system_type || 'Linux'}</span></div>
+                            <div><strong>Registry:</strong> <span style="color:#38bdf8;">Complete Software Audit</span></div>
+                            <div><strong>Status:</strong> <span style="color:#10b981;">Online &amp; Active</span></div>
+                        </div>
+
+                        <div style="margin-top:auto; display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:12px; color:var(--text-secondary);">Audit format: OpenXML Excel (.xlsx) / CSV</span>
+                            <button class="btn btn-primary" onclick="selectSoftwareNode('${node.node_id}', '${node.hostname}')" style="display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:600; padding:8px 16px; background:#0284c7;">
+                                📦 View Software Inventory &raquo;
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         function setFilter(filter) {
@@ -1295,6 +1553,8 @@ sudo ./scripts/install_linux_service.sh agent  # Installs Client Agent systemd s
                 
                 updateOverviewStats(data.summary || {});
                 renderNodes();
+                renderReportsNodeList();
+                renderSoftwareNodeList();
 
                 if (activeModalNodeId && nodesData[activeModalNodeId]) {
                     updateModalContent(nodesData[activeModalNodeId]);
@@ -1315,47 +1575,18 @@ sudo ./scripts/install_linux_service.sh agent  # Installs Client Agent systemd s
             } catch (err) {}
         }
 
-        async function fetchAutomationStatus() {
+        async function fetchDailyReports(nodeId = null) {
             try {
-                const res = await fetch('/api/automation/status');
-                if (!res.ok) return;
-                const auto = await res.json();
-
-                // Master
-                document.getElementById('auto-srv-status').textContent = auto.master_service.status;
-                document.getElementById('auto-srv-box').innerHTML = `
-                    <div>Port: ${auto.master_service.port} | Started: ${auto.master_service.started_at}</div>
-                    <div>Uptime: ${Math.floor(auto.master_service.uptime_seconds / 60)} mins (${auto.master_service.uptime_seconds}s)</div>
-                `;
-
-                // Discovery
-                document.getElementById('auto-disc-status').textContent = auto.network_discovery.status;
-                document.getElementById('auto-disc-box').innerHTML = `
-                    <div>UDP Port: ${auto.network_discovery.discovery_port} | Primary: ${auto.network_discovery.primary_ip}</div>
-                    <div>Interface: ${auto.network_discovery.interface} (Auto-Beacon Active)</div>
-                `;
-
-                // Database
-                document.getElementById('auto-db-status').textContent = auto.database_storage.status;
-                document.getElementById('auto-db-box').innerHTML = `
-                    <div>Engine: ${auto.database_storage.engine} (${auto.database_storage.size_mb} MB)</div>
-                    <div>Telemetry Samples: ${auto.database_storage.total_telemetry_samples} (Retention: ${auto.database_storage.retention_policy_days}d)</div>
-                `;
-            } catch (err) {
-                console.error("Error fetching automation status:", err);
-            }
-        }
-
-        async function fetchDailyReports() {
-            try {
-                const res = await fetch('/api/reports');
+                const targetNode = nodeId || selectedReportsNodeId;
+                const url = targetNode ? `/api/reports?node_id=${encodeURIComponent(targetNode)}` : '/api/reports';
+                const res = await fetch(url);
                 if (!res.ok) return;
                 const data = await res.json();
                 const tbody = document.getElementById('daily-reports-tbody');
                 const reports = data.reports || [];
 
                 if (reports.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding: 24px;">No daily reports generated yet. Click "Generate Daily Report Now".</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center; padding: 24px;">No daily reports generated yet for this computer. Click "Generate Daily Report Now".</td></tr>';
                     return;
                 }
 
@@ -1396,14 +1627,16 @@ sudo ./scripts/install_linux_service.sh agent  # Installs Client Agent systemd s
             document.getElementById('stat-online-nodes').textContent = summary.online_nodes || 0;
             document.getElementById('stat-offline-nodes').textContent = summary.offline_nodes || 0;
             document.getElementById('stat-real-nodes').textContent = summary.real_nodes || 0;
-            document.getElementById('stat-sim-nodes').textContent = summary.sim_nodes || 0;
+            const simCard = document.getElementById('stat-sim-nodes');
+            if (simCard) simCard.textContent = summary.sim_nodes || 0;
             document.getElementById('stat-alerts').textContent = (summary.warning_nodes || 0) + (summary.critical_nodes || 0);
             document.getElementById('stat-warn-count').textContent = summary.warning_nodes || 0;
             document.getElementById('stat-crit-count').textContent = summary.critical_nodes || 0;
 
             document.getElementById('count-tab-all').textContent = summary.total_nodes || 0;
             document.getElementById('count-tab-real').textContent = summary.real_nodes || 0;
-            document.getElementById('count-tab-sim').textContent = summary.sim_nodes || 0;
+            const simTab = document.getElementById('count-tab-sim');
+            if (simTab) simTab.textContent = summary.sim_nodes || 0;
             document.getElementById('count-tab-alerts').textContent = (summary.warning_nodes || 0) + (summary.critical_nodes || 0);
         }
 
@@ -1462,9 +1695,11 @@ sudo ./scripts/install_linux_service.sh agent  # Installs Client Agent systemd s
                             <div class="node-title-group">
                                 <div class="node-name">
                                     ${node.hostname}
-                                    ${isReal ? 
-                                        '<span class="badge badge-real">★ REAL SYSTEM</span>' : 
-                                        '<span class="badge badge-sim">SIMULATED VM</span>'}
+                                    ${node.is_ssh_agentless ?
+                                        '<span class="badge" style="background:rgba(6,182,212,0.18); color:#06b6d4; border:1px solid rgba(6,182,212,0.4);">★ SSH AGENTLESS</span>' :
+                                        (isReal ? 
+                                            '<span class="badge badge-real">★ REAL SYSTEM</span>' : 
+                                            '<span class="badge badge-sim">SIMULATED VM</span>')}
                                 </div>
                                 <div class="node-ip">
                                     <span>🌐 IP: <strong>${node.ip}</strong>${ifaceStr}</span>
@@ -1523,17 +1758,28 @@ sudo ./scripts/install_linux_service.sh agent  # Installs Client Agent systemd s
                             </div>
                         </div>
 
-                        <div class="node-footer">
+                        <div class="node-footer" style="flex-wrap:wrap; gap:8px;">
                             <div class="procs-tag">
                                 ⚙️ ${node.process_count || (node.processes ? node.processes.length : 0)} processes
-                                ${node.net_sent_kb ? ` | ↕ ${(node.net_sent_kb / 1024).toFixed(0)}MB` : ''}
+                                ${node.system_type ? ` | <span style="color:#94a3b8;">${node.system_type}</span>` : ''}
                             </div>
-                            <div style="display:flex; gap:8px;">
-                                <a href="/api/export/excel?type=telemetry&node_id=${escapeId(node.node_id)}" class="btn btn-secondary" style="padding: 6px 10px; font-size: 11px; text-decoration:none; display:inline-flex; align-items:center; gap:4px; background:#10b981; color:#fff; font-weight:600; border-radius:4px;" download>
-                                    📥 Excel (1-Wk)
+                            <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                                ${node.is_ssh_agentless ? `
+                                    <button class="btn btn-secondary" style="padding: 5px 9px; font-size: 11px; background:#1e293b; border:1px solid #334155; color:#38bdf8;" onclick="refreshSSHNode('${escapeId(node.node_id)}')" title="Force immediate SSH polling">
+                                        🔄 Poll
+                                    </button>
+                                    <button class="btn btn-secondary" style="padding: 5px 9px; font-size: 11px; background:#1e293b; border:1px solid #334155; color:#e2e8f0;" onclick="viewSoftwareForNode('${escapeId(node.node_id)}', '${node.hostname}')" title="Inspect installed software catalog">
+                                        📦 Software
+                                    </button>
+                                    <button class="btn btn-secondary" style="padding: 5px 8px; font-size: 11px; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); color:#fca5a5;" onclick="removeSSHNode('${escapeId(node.node_id)}', '${node.hostname}')" title="Disconnect and remove lab computer">
+                                        🗑️
+                                    </button>
+                                ` : ''}
+                                <a href="/api/export/excel?type=telemetry&node_id=${escapeId(node.node_id)}" class="btn btn-secondary" style="padding: 5px 9px; font-size: 11px; text-decoration:none; display:inline-flex; align-items:center; gap:4px; background:#10b981; color:#fff; font-weight:600; border-radius:4px;" download>
+                                    📥 Excel
                                 </a>
-                                <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="openNodeModal('${escapeId(node.node_id)}')">
-                                    Inspect &rarr;
+                                <button class="btn btn-primary" style="padding: 5px 12px; font-size: 12px;" onclick="openNodeModal('${escapeId(node.node_id)}')">
+                                    Details &rarr;
                                 </button>
                             </div>
                         </div>
@@ -1587,14 +1833,20 @@ sudo ./scripts/install_linux_service.sh agent  # Installs Client Agent systemd s
         let softwareSortField = 'name';
         let softwareSortAsc = true;
 
-        async function fetchInstalledSoftware(forceRefresh = false) {
+        async function fetchInstalledSoftware(forceRefresh = false, nodeId = null) {
             try {
+                const targetNode = nodeId || selectedSoftwareNodeId;
                 const tbody = document.getElementById('installed-software-tbody');
                 if (tbody && (allInstalledSoftware.length === 0 || forceRefresh)) {
                     tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding: 32px; color:var(--text-secondary);">Scanning system package database &amp; desktop applications...</td></tr>';
                 }
 
-                const url = forceRefresh ? '/api/software?refresh=1' : '/api/software';
+                let url = '/api/software';
+                const qParams = [];
+                if (forceRefresh) qParams.push('refresh=1');
+                if (targetNode) qParams.push(`node_id=${encodeURIComponent(targetNode)}`);
+                if (qParams.length > 0) url += '?' + qParams.join('&');
+
                 const res = await fetch(url);
                 if (!res.ok) throw new Error("Failed to load software inventory");
                 const data = await res.json();
@@ -1619,7 +1871,7 @@ sudo ./scripts/install_linux_service.sh agent  # Installs Client Agent systemd s
             if (btn) btn.disabled = true;
             if (spinner) spinner.textContent = '⏳';
             try {
-                await fetchInstalledSoftware(true);
+                await fetchInstalledSoftware(true, selectedSoftwareNodeId);
                 if (spinner) spinner.textContent = '✅';
                 setTimeout(() => { if (spinner) spinner.textContent = '🔄'; if (btn) btn.disabled = false; }, 1500);
             } catch (e) {
@@ -1674,6 +1926,11 @@ sudo ./scripts/install_linux_service.sh agent  # Installs Client Agent systemd s
 
             // 3. Sorting
             filtered.sort((a, b) => {
+                const dateA = a.install_date || a.date || '';
+                const dateB = b.install_date || b.date || '';
+                const pathA = a.install_path || a.path || '';
+                const pathB = b.install_path || b.path || '';
+
                 if (sortSelect === 'name_asc') {
                     return (a.name || '').localeCompare(b.name || '');
                 } else if (sortSelect === 'name_desc') {
@@ -1682,10 +1939,22 @@ sudo ./scripts/install_linux_service.sh agent  # Installs Client Agent systemd s
                     return (b.version || '').localeCompare(a.version || '', undefined, { numeric: true });
                 } else if (sortSelect === 'publisher') {
                     return (a.publisher || '').localeCompare(b.publisher || '');
+                } else if (sortSelect === 'category') {
+                    return (a.category || '').localeCompare(b.category || '');
+                } else if (sortSelect === 'path_asc') {
+                    return pathA.localeCompare(pathB);
+                } else if (sortSelect === 'path_desc') {
+                    return pathB.localeCompare(pathA);
                 } else if (sortSelect === 'source') {
                     return (a.source || '').localeCompare(b.source || '');
                 } else if (sortSelect === 'date_desc') {
-                    return (b.install_date || '').localeCompare(a.install_date || '');
+                    if (dateA === 'N/A' && dateB !== 'N/A') return 1;
+                    if (dateB === 'N/A' && dateA !== 'N/A') return -1;
+                    return dateB.localeCompare(dateA);
+                } else if (sortSelect === 'date_asc') {
+                    if (dateA === 'N/A' && dateB !== 'N/A') return 1;
+                    if (dateB === 'N/A' && dateA !== 'N/A') return -1;
+                    return dateA.localeCompare(dateB);
                 }
                 return 0;
             });
@@ -1710,8 +1979,12 @@ sudo ./scripts/install_linux_service.sh agent  # Installs Client Agent systemd s
                 select.value = 'ver_desc';
             } else if (field === 'publisher') {
                 select.value = 'publisher';
+            } else if (field === 'category') {
+                select.value = 'category';
+            } else if (field === 'path') {
+                select.value = (select.value === 'path_asc') ? 'path_desc' : 'path_asc';
             } else if (field === 'date') {
-                select.value = 'date_desc';
+                select.value = (select.value === 'date_desc') ? 'date_asc' : 'date_desc';
             }
             applySoftwareFilters();
         }
@@ -1762,16 +2035,18 @@ sudo ./scripts/install_linux_service.sh agent  # Installs Client Agent systemd s
                 else if (src.includes('Desktop') || src.includes('AppImage')) { srcBadgeClass = 'cat-app'; srcColor = '#34d399'; }
                 else if (src.includes('dpkg') || src.includes('apt')) { srcBadgeClass = 'cat-daemon'; srcColor = '#a78bfa'; }
 
-                const pathDisplay = (p.install_path && p.install_path !== 'N/A') ? 
-                    `<code style="font-size:11px; color:#94a3b8; background:rgba(0,0,0,0.25); padding:2px 4px; border-radius:3px;">${escapeHtml(p.install_path)}</code>` : 
+                const pathVal = p.install_path || p.path || '';
+                const pathDisplay = (pathVal && pathVal !== 'N/A') ? 
+                    `<code style="font-size:11px; color:#94a3b8; background:rgba(0,0,0,0.25); padding:2px 4px; border-radius:3px;">${escapeHtml(pathVal)}</code>` : 
                     '<span style="color:var(--text-muted); font-size:11px;">N/A</span>';
 
                 const publisherDisplay = (p.publisher && p.publisher !== 'N/A') ?
                     `<span style="font-size:12px; color:#cbd5e1;">${escapeHtml(p.publisher)}</span>` :
                     '<span style="color:var(--text-muted); font-size:11px;">N/A</span>';
 
-                const dateDisplay = (p.install_date && p.install_date !== 'N/A') ?
-                    `<span style="font-size:11px; color:#94a3b8; font-family:monospace;">${escapeHtml(p.install_date)}</span>` :
+                const dateVal = p.install_date || p.date || '';
+                const dateDisplay = (dateVal && dateVal !== 'N/A') ?
+                    `<span style="font-size:11px; color:#cbd5e1; font-family:monospace;">${escapeHtml(dateVal)}</span>` :
                     '<span style="color:var(--text-muted); font-size:11px;">N/A</span>';
 
                 return `
@@ -1958,33 +2233,232 @@ sudo ./scripts/install_linux_service.sh agent  # Installs Client Agent systemd s
             }
         }
 
-        async function purgeOfflineNodes() {
-            try {
-                const btn = document.getElementById('btn-purge-nodes');
-                const orig = btn ? btn.textContent : '';
-                if (btn) btn.textContent = 'Clearing...';
-                await fetch('/api/nodes/purge_offline', { method: 'POST' });
-                await fetchFleetData();
-                if (btn) {
-                    btn.textContent = '✓ Cleared!';
-                    setTimeout(() => { btn.textContent = orig; }, 2000);
-                }
-            } catch (e) {
-                console.error(e);
+        // ==============================================================================
+        // AGENTLESS SSH LAB COMPUTER MODAL & ACTION HANDLERS
+        // ==============================================================================
+
+        function openAddComputerModal() {
+            document.getElementById('add-computer-modal').classList.add('active');
+            const alertBox = document.getElementById('add-modal-alert');
+            if (alertBox) alertBox.style.display = 'none';
+            document.getElementById('add-ssh-ip').focus();
+        }
+
+        function closeAddComputerModal() {
+            document.getElementById('add-computer-modal').classList.remove('active');
+        }
+
+        function closeAddModalOnOverlay(e) {
+            if (e.target.id === 'add-computer-modal') {
+                closeAddComputerModal();
             }
         }
 
-        async function toggleSimulationFleet() {
-            try {
-                const btn = document.getElementById('btn-toggle-sim');
-                btn.textContent = 'Working...';
-                const res = await fetch('/api/simulator/toggle', { method: 'POST' });
-                const json = await res.json();
-                btn.textContent = json.running ? '🛑 Stop Simulated Fleet' : '⚡ Toggle Simulated Fleet';
-                fetchFleetData();
-            } catch (e) {
-                console.error(e);
+        function toggleSSHAuthFields() {
+            const authType = document.querySelector('input[name="ssh_auth_type"]:checked').value;
+            const passGroup = document.getElementById('ssh-password-group');
+            const keyGroup = document.getElementById('ssh-key-group');
+            if (authType === 'password') {
+                passGroup.style.display = 'block';
+                keyGroup.style.display = 'none';
+            } else {
+                passGroup.style.display = 'none';
+                keyGroup.style.display = 'flex';
             }
+        }
+
+        function togglePassVisibility() {
+            const passInput = document.getElementById('add-ssh-pass');
+            passInput.type = passInput.type === 'password' ? 'text' : 'password';
+        }
+
+        function showAddModalAlert(type, message) {
+            const alertBox = document.getElementById('add-modal-alert');
+            alertBox.style.display = 'block';
+            if (type === 'error') {
+                alertBox.style.background = 'rgba(239,68,68,0.15)';
+                alertBox.style.border = '1px solid rgba(239,68,68,0.4)';
+                alertBox.style.color = '#fca5a5';
+                alertBox.innerHTML = `<strong>❌ Connection Error:</strong> ${message}`;
+            } else if (type === 'success') {
+                alertBox.style.background = 'rgba(16,185,129,0.15)';
+                alertBox.style.border = '1px solid rgba(16,185,129,0.4)';
+                alertBox.style.color = '#6ee7b7';
+                alertBox.innerHTML = `<strong>✅ Success:</strong> ${message}`;
+            } else {
+                alertBox.style.background = 'rgba(56,189,248,0.15)';
+                alertBox.style.border = '1px solid rgba(56,189,248,0.4)';
+                alertBox.style.color = '#7dd3fc';
+                alertBox.innerHTML = `<strong>⏳ Progress:</strong> ${message}`;
+            }
+        }
+
+        async function testSSHConnection() {
+            const ip = document.getElementById('add-ssh-ip').value.trim();
+            const port = parseInt(document.getElementById('add-ssh-port').value.trim() || '22');
+            const username = document.getElementById('add-ssh-user').value.trim();
+            const authType = document.querySelector('input[name="ssh_auth_type"]:checked').value;
+            const password = document.getElementById('add-ssh-pass').value;
+            const keyPath = document.getElementById('add-ssh-keypath').value.trim();
+            const keyText = document.getElementById('add-ssh-keytext').value.trim();
+
+            if (!ip) {
+                showAddModalAlert('error', 'Please enter a valid Computer IP address.');
+                return;
+            }
+            if (!username) {
+                showAddModalAlert('error', 'Please enter an SSH username.');
+                return;
+            }
+            if (authType === 'password' && !password) {
+                showAddModalAlert('error', 'Please enter an SSH password.');
+                return;
+            }
+
+            const btn = document.getElementById('btn-ssh-test');
+            btn.disabled = true;
+            btn.innerHTML = '<span>⏳</span> Testing...';
+            showAddModalAlert('progress', `Testing SSH connection to ${ip}:${port} as '${username}'...`);
+
+            try {
+                const res = await fetch('/api/ssh/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ip: ip,
+                        port: port,
+                        username: username,
+                        auth_type: authType,
+                        password: password,
+                        key_path: keyPath,
+                        key_data: keyText
+                    })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    showAddModalAlert('success', `Connection Verified! Host: <strong>${data.info.hostname}</strong> | OS: <strong>${data.info.os} (${data.info.arch})</strong>`);
+                } else {
+                    showAddModalAlert('error', data.error || 'SSH Connection Failed');
+                }
+            } catch (err) {
+                showAddModalAlert('error', 'Network error testing SSH: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span>🔍</span> Test Connection';
+            }
+        }
+
+        async function submitAddComputer() {
+            const ip = document.getElementById('add-ssh-ip').value.trim();
+            const port = parseInt(document.getElementById('add-ssh-port').value.trim() || '22');
+            const username = document.getElementById('add-ssh-user').value.trim();
+            const friendlyName = document.getElementById('add-ssh-name').value.trim();
+            const authType = document.querySelector('input[name="ssh_auth_type"]:checked').value;
+            const password = document.getElementById('add-ssh-pass').value;
+            const keyPath = document.getElementById('add-ssh-keypath').value.trim();
+            const keyText = document.getElementById('add-ssh-keytext').value.trim();
+
+            if (!ip) {
+                showAddModalAlert('error', 'Please enter a valid Computer IP address.');
+                return;
+            }
+            if (!username) {
+                showAddModalAlert('error', 'Please enter an SSH username.');
+                return;
+            }
+            if (authType === 'password' && !password) {
+                showAddModalAlert('error', 'Please enter an SSH password.');
+                return;
+            }
+
+            const btn = document.getElementById('btn-ssh-connect');
+            btn.disabled = true;
+            btn.innerHTML = '<span>⏳</span> Connecting...';
+            showAddModalAlert('progress', `Connecting to ${ip}:${port}, verifying host key, and scanning system details...`);
+
+            try {
+                const res = await fetch('/api/ssh/connect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ip: ip,
+                        port: port,
+                        username: username,
+                        hostname: friendlyName,
+                        auth_type: authType,
+                        password: password,
+                        key_path: keyPath,
+                        key_data: keyText
+                    })
+                });
+                const data = await res.json();
+                if (res.ok && data.status === 'ok') {
+                    showAddModalAlert('success', `Connected! '${data.hostname}' (${data.ip}) registered into ProcessShield.`);
+                    document.getElementById('add-ssh-ip').value = '';
+                    document.getElementById('add-ssh-name').value = '';
+                    document.getElementById('add-ssh-pass').value = '';
+                    fetchFleetData();
+                    setTimeout(() => {
+                        closeAddComputerModal();
+                    }, 1200);
+                } else {
+                    showAddModalAlert('error', data.error || 'Failed to connect to computer.');
+                }
+            } catch (err) {
+                showAddModalAlert('error', 'Request failed: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span>⚡</span> Connect &amp; Monitor';
+            }
+        }
+
+        async function refreshSSHNode(encodedNodeId) {
+            const nodeId = decodeURIComponent(encodedNodeId);
+            try {
+                const res = await fetch('/api/ssh/refresh', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ node_id: nodeId })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    fetchFleetData();
+                } else {
+                    alert('Refresh failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (e) {
+                alert('Error refreshing SSH node: ' + e);
+            }
+        }
+
+        async function removeSSHNode(encodedNodeId, hostname) {
+            const nodeId = decodeURIComponent(encodedNodeId);
+            if (!confirm(`Are you sure you want to disconnect and remove lab computer "${hostname}" (${nodeId}) from ProcessShield?`)) {
+                return;
+            }
+            try {
+                const res = await fetch('/api/ssh/remove', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ node_id: nodeId })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    fetchFleetData();
+                    if (selectedReportsNodeId === nodeId) showReportsNodeList();
+                    if (selectedSoftwareNodeId === nodeId) showSoftwareNodeList();
+                } else {
+                    alert('Failed to remove computer: ' + (data.error || 'Unknown error'));
+                }
+            } catch (e) {
+                alert('Error removing computer: ' + e);
+            }
+        }
+
+        function viewSoftwareForNode(encodedNodeId, hostname) {
+            const nodeId = decodeURIComponent(encodedNodeId);
+            switchView('software');
+            selectSoftwareNode(nodeId, hostname);
         }
 
         // Initialize polling

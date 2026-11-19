@@ -42,7 +42,8 @@ import {
   Layers,
   User,
   Cpu,
-  HardDrive
+  HardDrive,
+  ArrowRightLeft
 } from 'lucide-react';
 import { PlatformIcon } from '../components/common/PlatformIcon';
 import { ProcessIcon } from '../components/common/ProcessIcon';
@@ -104,6 +105,7 @@ export const Labs: React.FC = () => {
   const [prefixInput, setPrefixInput] = useState('');
   const [seatEditNodeId, setSeatEditNodeId] = useState<string | null>(null);
   const [seatInputValue, setSeatInputValue] = useState<string>('');
+  const [transferNodeId, setTransferNodeId] = useState<string | null>(null);
 
   // Lab Actions Menu & Command Modal State
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
@@ -308,6 +310,16 @@ export const Labs: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['labs'] });
       queryClient.invalidateQueries({ queryKey: ['labOverview', activeLabId] });
       queryClient.invalidateQueries({ queryKey: ['unassignedNodes'] });
+    }
+  });
+
+  const claimAllMutation = useMutation({
+    mutationFn: (labId: string) => labsApi.claimAll(labId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['labs'] });
+      queryClient.invalidateQueries({ queryKey: ['labOverview', activeLabId] });
+      setActionNotice('All connected workstations claimed into this lab.');
+      setTimeout(() => setActionNotice(null), 4000);
     }
   });
 
@@ -759,8 +771,15 @@ export const Labs: React.FC = () => {
               </p>
               <div className="mt-4 flex items-center justify-center gap-3">
                 <button
-                  onClick={() => setIsAddNodeModalOpen(true)}
+                  onClick={() => claimAllMutation.mutate(currentLab.id)}
                   className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition flex items-center gap-1.5"
+                >
+                  <Monitor className="w-4 h-4" />
+                  <span>Claim All Connected Workstations</span>
+                </button>
+                <button
+                  onClick={() => setIsAddNodeModalOpen(true)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-200 transition flex items-center gap-1.5"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Add Node to {currentLab.name}</span>
@@ -831,6 +850,39 @@ export const Labs: React.FC = () => {
                         </button>
 
                         <div className="flex items-center gap-1.5">
+                          {/* Transfer desktop to another lab */}
+                          <div className="relative">
+                            <button
+                              onClick={() => setTransferNodeId(transferNodeId === node.node_id ? null : node.node_id)}
+                              title="Transfer workstation to another lab"
+                              className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition"
+                            >
+                              <ArrowRightLeft className="w-3 h-3" />
+                            </button>
+                            {transferNodeId === node.node_id && (
+                              <div className="absolute right-0 top-full mt-1.5 w-48 bg-white border border-slate-200 rounded-2xl shadow-2xl z-30 py-1.5 text-left animate-fadeIn">
+                                <div className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                  Transfer to Lab
+                                </div>
+                                {labs.map(l => (
+                                  <button
+                                    key={l.id}
+                                    onClick={() => {
+                                      assignBatchMutation.mutate({ nodeIds: [node.node_id], labId: l.id });
+                                      setTransferNodeId(null);
+                                    }}
+                                    className={`w-full text-left px-3 py-2 text-xs font-semibold flex items-center justify-between hover:bg-blue-50 hover:text-blue-600 transition ${
+                                      l.id === currentLab.id ? 'text-blue-600 bg-blue-50/50' : 'text-slate-700'
+                                    }`}
+                                  >
+                                    <span className="truncate">{l.name}</span>
+                                    {l.id === currentLab.id && <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
                           {!isOnline ? (
                             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200 flex items-center gap-1">
                               <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />

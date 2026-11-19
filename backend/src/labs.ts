@@ -94,6 +94,41 @@ function seedDefaultLabs() {
 seedDefaultLabs();
 
 // ==========================================
+// AUTO-ASSIGNMENT HELPER
+// ==========================================
+export async function autoAssignUnassignedNodes(): Promise<number> {
+  try {
+    const allNodes = await deviceRepository.findAll(true);
+    const labs = await labRepo.getAll();
+    if (labs.length === 0 || allNodes.length === 0) return 0;
+
+    let assigned = 0;
+    const defaultLab = labs[0];
+
+    for (const node of allNodes) {
+      if (!node.labId) {
+        let matchedLab = labs.find(l => {
+          if (!l.prefix) return false;
+          const p = l.prefix.toLowerCase().trim();
+          return (
+            (node.hostname && node.hostname.toLowerCase().includes(p)) ||
+            (node.system_type && node.system_type.toLowerCase().includes(p))
+          );
+        });
+
+        const targetLab = matchedLab || defaultLab;
+        await deviceRepository.upsert({ node_id: node.node_id, labId: targetLab.id });
+        node.labId = targetLab.id;
+        assigned++;
+      }
+    }
+    return assigned;
+  } catch {
+    return 0;
+  }
+}
+
+// ==========================================
 // 2. LAB REPOSITORY FUNCTIONS
 // ==========================================
 
@@ -386,6 +421,7 @@ export const setLabsIo = (_socketIo: any) => {};
 // GET /api/labs - List all labs with counts + unassigned
 labsRouter.get('/labs', async (req: Request, res: Response) => {
   try {
+    await autoAssignUnassignedNodes();
     const labs = await labRepo.getAll();
     const nodes = await deviceRepository.findAll(true);
     const nowSec = Date.now() / 1000;
@@ -507,8 +543,24 @@ labsRouter.get('/labs/:id/overview', async (req: Request, res: Response) => {
   const lab = await labRepo.getById(labId);
   if (!lab) return res.status(404).json({ error: 'Lab not found' });
 
-  const allNodes = await deviceRepository.findAll(true);
-  const labNodes = allNodes.filter(n => n.labId === labId);
+  await autoAssignUnassignedNodes();
+
+  let allNodes = await deviceRepository.findAll(true);
+  let labNodes = allNodes.filter(n => n.labId === labId);
+
+  // If this lab has 0 workstations and there are unassigned machines or if this is the only lab, claim them immediately
+  if (labNodes.length === 0 && allNodes.length > 0) {
+    const unassigned = allNodes.filter(n => !n.labId);
+    if (unassigned.length > 0) {
+      for (const un of unassigned) {
+        await deviceRepository.upsert({ node_id: un.node_id, labId: lab.id });
+        un.labId = lab.id;
+      }
+      allNodes = await deviceRepository.findAll(true);
+      labNodes = allNodes.filter(n => n.labId === labId);
+    }
+  }
+
   const nowSec = Date.now() / 1000;
 
   const machines = await Promise.all(labNodes.map(async (n: any) => {
@@ -607,7 +659,7 @@ labsRouter.get('/labs/:id/usage', async (req: Request, res: Response) => {
   return res.json({ days: usageDays });
 });
 
-// POST /api/labs/:id/assign-by-prefix - Assign machines matching hostname prefix
+// POST /api/labs/:id/assign-by-prefix - Assign machines matching hostname or OS prefix
 labsRouter.post('/labs/:id/assign-by-prefix', async (req: Request, res: Response) => {
   const { prefix } = req.body;
   if (!prefix || typeof prefix !== 'string' || !prefix.trim()) {
@@ -623,7 +675,12 @@ labsRouter.post('/labs/:id/assign-by-prefix', async (req: Request, res: Response
   let assignedCount = 0;
 
   for (const node of allNodes) {
-    if (node.hostname.toLowerCase().startsWith(cleanPrefix)) {
+    const matches =
+      cleanPrefix === '*' ||
+      (node.hostname && node.hostname.toLowerCase().includes(cleanPrefix)) ||
+      (node.system_type && node.system_type.toLowerCase().includes(cleanPrefix));
+
+    if (matches) {
       await deviceRepository.upsert({ node_id: node.node_id, labId: lab.id });
       assignedCount++;
     }
@@ -631,6 +688,24 @@ labsRouter.post('/labs/:id/assign-by-prefix', async (req: Request, res: Response
 
   if (io) io.emit('lab:update', { action: 'assign', labId: lab.id, assignedCount });
   return res.json({ status: 'ok', assignedCount, message: `Assigned ${assignedCount} nodes to ${lab.name}` });
+});
+
+// POST /api/labs/:id/claim-all - Assign all available/connected machines to this lab
+labsRouter.post('/labs/:id/claim-all', async (req: Request, res: Response) => {
+  const labId = String(req.params.id);
+  const lab = await labRepo.getById(labId);
+  if (!lab) return res.status(404).json({ error: 'Lab not found' });
+
+  const allNodes = await deviceRepository.findAll(true);
+  let claimedCount = 0;
+
+  for (const node of allNodes) {
+    await deviceRepository.upsert({ node_id: node.node_id, labId: lab.id });
+    claimedCount++;
+  }
+
+  if (io) io.emit('lab:update', { action: 'claim-all', labId: lab.id, claimedCount });
+  return res.json({ status: 'ok', claimedCount, message: `Claimed ${claimedCount} nodes to ${lab.name}` });
 });
 
 // GET /api/labs/unassigned/nodes - Machines with no lab assigned

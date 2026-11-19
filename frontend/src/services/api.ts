@@ -105,6 +105,8 @@ export const labsApi = {
     api.get(`/labs/${id}/usage?days=${days}`).then(res => res.data),
   assignByPrefix: (id: string, prefix: string) =>
     api.post(`/labs/${id}/assign-by-prefix`, { prefix }).then(res => res.data),
+  claimAll: (id: string) =>
+    api.post(`/labs/${id}/claim-all`).then(res => res.data),
   getUnassignedNodes: () =>
     api.get('/labs/unassigned/nodes').then(res => res.data),
   assignNodes: (nodeIds: string[], labId: string | null) =>

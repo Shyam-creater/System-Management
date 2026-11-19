@@ -3,24 +3,24 @@
   "hostname": "sjt418scope069",
   "report_date": "2026-11-10",
   "is_simulated": false,
-  "samples_collected": 867,
+  "samples_collected": 3657,
   "uptime_percent": 100.0,
-  "alerts_count": 0,
+  "alerts_count": 1,
   "cpu": {
-    "avg": 1.7,
-    "max": 15.2
+    "avg": 0.8,
+    "max": 17.2
   },
   "ram": {
-    "avg": 12.7,
-    "max": 13.3
+    "avg": 10.2,
+    "max": 13.4
   },
   "disk": {
-    "avg": 60.8,
-    "max": 60.8
+    "avg": 60.9,
+    "max": 60.9
   },
   "gpu": {
-    "avg": 25.5,
-    "max": 70.0
+    "avg": 12.9,
+    "max": 100.0
   },
-  "generated_at": 1794286094.0208783
+  "generated_at": 1794309205.3536065
 }

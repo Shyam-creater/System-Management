@@ -23,6 +23,9 @@ from socketserver import ThreadingMixIn
 # Import persistent database and discovery modules
 import database
 from discovery import MasterDiscoveryService
+import ssh_crypto
+import ssh_manager
+import ssh_monitor
 
 FLEET_LOCK = threading.Lock()
 FLEET_NODES = {}
@@ -239,11 +242,14 @@ class MasterRequestHandler(BaseHTTPRequestHandler):
 
                 for nid, n in FLEET_NODES.items():
                     n_copy = dict(n)
-                    # Node considered offline if no heartbeat within 15 seconds (3 missed heartbeats)
                     seconds_since_seen = now - n_copy.get('last_seen', 0)
-                    is_online = seconds_since_seen <= 15.0
-                    n_copy['status'] = 'ONLINE' if is_online else 'OFFLINE'
                     n_copy['seconds_since_seen'] = round(seconds_since_seen, 1)
+
+                    if n_copy.get('is_ssh_agentless'):
+                        is_online = (n_copy.get('status') == 'ONLINE')
+                    else:
+                        is_online = seconds_since_seen <= 15.0
+                        n_copy['status'] = 'ONLINE' if is_online else 'OFFLINE'
 
                     if is_online:
                         online_nodes += 1
@@ -252,10 +258,10 @@ class MasterRequestHandler(BaseHTTPRequestHandler):
                         elif n_copy.get('health') == 'CRITICAL':
                             critical_nodes += 1
                     else:
-                        n_copy['health'] = 'OFFLINE'
+                        if not n_copy.get('is_ssh_agentless'):
+                            n_copy['health'] = 'OFFLINE'
+                            database.update_node_status(nid, 'OFFLINE', 'OFFLINE')
                         warning_nodes += 1
-                        # Update status in DB
-                        database.update_node_status(nid, 'OFFLINE', 'OFFLINE')
 
                     if n_copy.get('is_simulated', False):
                         sim_nodes += 1
@@ -342,8 +348,21 @@ class MasterRequestHandler(BaseHTTPRequestHandler):
             else:
                 self.send_json(400, {"error": "Missing node_id parameter"})
 
+        elif path == '/api/ssh/nodes':
+            ssh_nodes = database.get_all_ssh_nodes()
+            sanitized = []
+            for sn in ssh_nodes:
+                sn_copy = dict(sn)
+                sn_copy.pop('enc_secret', None)
+                sanitized.append(sn_copy)
+            self.send_json(200, {"status": "ok", "nodes": sanitized})
+
         elif path == '/api/reports':
-            reports = database.get_daily_reports_list(limit=50)
+            node_id = None
+            if '?' in self.path:
+                q_dict = urllib.parse.parse_qs(self.path.split('?', 1)[1])
+                node_id = q_dict.get('node_id', [None])[0]
+            reports = database.get_daily_reports_list(node_id=node_id, limit=50)
             self.send_json(200, {"reports": reports})
 
         elif path == '/api/export/excel':
@@ -427,6 +446,26 @@ class MasterRequestHandler(BaseHTTPRequestHandler):
             query_str = self.path.split('?')[1] if '?' in self.path else ''
             params = urllib.parse.parse_qs(query_str)
             force_refresh = 'refresh' in params or 'rescan' in params
+            target_node_id = params.get('node_id', [None])[0]
+
+            ssh_node = database.get_ssh_node(target_node_id) if target_node_id else None
+            if ssh_node:
+                safe_hostname = ssh_node['hostname']
+                if force_refresh:
+                    packages = ssh_monitor.rescan_node_software_now(target_node_id)
+                else:
+                    packages = database.get_ssh_software(target_node_id) or []
+                    if not packages:
+                        packages = ssh_monitor.rescan_node_software_now(target_node_id)
+                self.send_json(200, {
+                    "hostname": safe_hostname,
+                    "node_id": target_node_id,
+                    "system_type": "Ubuntu Linux (SSH Agentless)",
+                    "total_count": len(packages),
+                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "packages": packages
+                })
+                return
 
             safe_hostname = "sjt418scope069"
             with FLEET_LOCK:
@@ -444,14 +483,25 @@ class MasterRequestHandler(BaseHTTPRequestHandler):
             })
 
         elif path in ('/api/software/export.xlsx', '/api/export/software.xlsx'):
-            safe_hostname = "sjt418scope069"
-            with FLEET_LOCK:
-                if FLEET_NODES:
-                    first_node = list(FLEET_NODES.values())[0]
-                    safe_hostname = first_node.get('hostname', safe_hostname)
-            xlsx_bytes = database.export_software_xlsx(hostname=safe_hostname)
+            query_str = self.path.split('?')[1] if '?' in self.path else ''
+            params = urllib.parse.parse_qs(query_str)
+            target_node_id = params.get('node_id', [None])[0]
+
+            ssh_node = database.get_ssh_node(target_node_id) if target_node_id else None
+            if ssh_node:
+                safe_hostname = ssh_node['hostname']
+                packages = database.get_ssh_software(target_node_id) or []
+            else:
+                packages = None
+                safe_hostname = "sjt418scope069"
+                with FLEET_LOCK:
+                    if FLEET_NODES:
+                        first_node = list(FLEET_NODES.values())[0]
+                        safe_hostname = first_node.get('hostname', safe_hostname)
+
+            xlsx_bytes = database.export_software_xlsx(hostname=safe_hostname, packages=packages)
             today_str = time.strftime('%Y-%m-%d')
-            filename = f"Installed_Software_Inventory_{today_str}.xlsx"
+            filename = f"Installed_Software_Inventory_{safe_hostname}_{today_str}.xlsx"
             self.send_response(200)
             self.send_header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
             self.send_header('Content-Disposition', f'attachment; filename="{filename}"')
@@ -625,6 +675,26 @@ class MasterRequestHandler(BaseHTTPRequestHandler):
             self.send_json(200, {"status": "ok", "purged_count": len(to_remove), "remaining_nodes": len(FLEET_NODES)})
 
         elif path in ('/api/software/rescan', '/api/software/refresh'):
+            query_str = self.path.split('?')[1] if '?' in self.path else ''
+            params = urllib.parse.parse_qs(query_str)
+            target_node_id = params.get('node_id', [None])[0]
+
+            ssh_node = database.get_ssh_node(target_node_id) if target_node_id else None
+            if ssh_node:
+                safe_hostname = ssh_node['hostname']
+                packages = ssh_monitor.rescan_node_software_now(target_node_id)
+                self.send_json(200, {
+                    "status": "ok",
+                    "message": f"Software inventory for {safe_hostname} rescanned successfully",
+                    "hostname": safe_hostname,
+                    "node_id": target_node_id,
+                    "system_type": "Ubuntu Linux (SSH Agentless)",
+                    "total_count": len(packages),
+                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "packages": packages
+                })
+                return
+
             safe_hostname = "sjt418scope069"
             with FLEET_LOCK:
                 if FLEET_NODES:
@@ -640,6 +710,198 @@ class MasterRequestHandler(BaseHTTPRequestHandler):
                 "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
                 "packages": packages
             })
+
+        elif path == '/api/ssh/test':
+            try:
+                content_len = int(self.headers.get('Content-Length', 0))
+                body = self.rfile.read(content_len) if content_len > 0 else b'{}'
+                req_data = json.loads(body.decode('utf-8'))
+
+                ip = req_data.get('ip', '').strip()
+                port = int(req_data.get('port', 22))
+                username = req_data.get('username', 'ubuntu').strip()
+                auth_type = req_data.get('auth_type', 'password')
+                password = req_data.get('password')
+                key_data = req_data.get('key_data')
+                key_path = req_data.get('key_path')
+                passphrase = req_data.get('passphrase')
+
+                if not ip:
+                    self.send_json(400, {"status": "error", "error": "IP address is required."})
+                    return
+
+                if not ssh_manager.validate_ip(ip):
+                    self.send_json(400, {"status": "error", "error": f"Invalid IP address format: '{ip}'"})
+                    return
+
+                success, res_data = ssh_manager.test_connection(
+                    ip=ip, port=port, username=username,
+                    auth_type=auth_type, password=password,
+                    key_data=key_data, key_path=key_path,
+                    passphrase=passphrase
+                )
+
+                if success:
+                    self.send_json(200, {
+                        "status": "ok",
+                        "success": True,
+                        "message": f"Successfully connected to {res_data.get('hostname')} ({ip})",
+                        "info": res_data
+                    })
+                else:
+                    self.send_json(400, {
+                        "status": "error",
+                        "success": False,
+                        "error": res_data.get("error", "Failed to connect via SSH")
+                    })
+            except Exception as e:
+                self.send_json(500, {"status": "error", "error": str(e)})
+
+        elif path in ('/api/ssh/connect', '/api/ssh/register'):
+            try:
+                content_len = int(self.headers.get('Content-Length', 0))
+                body = self.rfile.read(content_len) if content_len > 0 else b'{}'
+                req_data = json.loads(body.decode('utf-8'))
+
+                ip = req_data.get('ip', '').strip()
+                port = int(req_data.get('port', 22))
+                username = req_data.get('username', 'ubuntu').strip()
+                auth_type = req_data.get('auth_type', 'password')
+                password = req_data.get('password')
+                key_data = req_data.get('key_data')
+                key_path = req_data.get('key_path')
+                passphrase = req_data.get('passphrase')
+                friendly_name = req_data.get('hostname', '').strip()
+
+                if not ip:
+                    self.send_json(400, {"status": "error", "error": "IP address is required."})
+                    return
+
+                if not ssh_manager.validate_ip(ip):
+                    self.send_json(400, {"status": "error", "error": f"Invalid IP address: '{ip}'"})
+                    return
+
+                # Test connection first
+                success, test_info = ssh_manager.test_connection(
+                    ip=ip, port=port, username=username,
+                    auth_type=auth_type, password=password,
+                    key_data=key_data, key_path=key_path,
+                    passphrase=passphrase
+                )
+
+                if not success:
+                    self.send_json(400, {
+                        "status": "error",
+                        "error": f"SSH connection test failed: {test_info.get('error')}"
+                    })
+                    return
+
+                hostname = friendly_name or test_info.get('hostname', ip)
+                node_id = f"{hostname} ({ip})"
+
+                # Encrypt sensitive credential before persisting
+                secret_to_encrypt = password if auth_type == 'password' else (key_data or '')
+                enc_secret = ssh_crypto.encrypt_secret(secret_to_encrypt) if secret_to_encrypt else ''
+
+                node_reg = {
+                    "node_id": node_id,
+                    "hostname": hostname,
+                    "ip": ip,
+                    "port": port,
+                    "username": username,
+                    "auth_type": auth_type,
+                    "enc_secret": enc_secret,
+                    "key_path": key_path or '',
+                    "auto_poll": 1,
+                    "poll_interval_sec": 10
+                }
+
+                database.register_ssh_node(node_reg)
+
+                with FLEET_LOCK:
+                    FLEET_NODES[node_id] = {
+                        "node_id": node_id,
+                        "hostname": hostname,
+                        "ip": ip,
+                        "port": port,
+                        "username": username,
+                        "auth_type": auth_type,
+                        "is_simulated": False,
+                        "is_ssh_agentless": True,
+                        "system_type": f"{test_info.get('os', 'Ubuntu')} ({test_info.get('arch', 'x86_64')})",
+                        "cpu_percent": 0.0,
+                        "ram_percent": 0.0,
+                        "ram_used_gb": 0.0,
+                        "ram_total_gb": 0.0,
+                        "disk_percent": 0.0,
+                        "disk_used_gb": 0.0,
+                        "disk_total_gb": 0.0,
+                        "process_count": 0,
+                        "processes": [],
+                        "health": "HEALTHY",
+                        "status": "ONLINE",
+                        "last_seen": time.time(),
+                        "last_seen_time": time.strftime("%H:%M:%S"),
+                        "seconds_since_seen": 0.0
+                    }
+
+                # Perform immediate initial telemetry and software scan
+                poll_result = ssh_monitor.poll_single_node(node_reg, force_software_scan=True)
+
+                self.send_json(200, {
+                    "status": "ok",
+                    "message": f"Computer '{hostname}' ({ip}) registered successfully via SSH",
+                    "node_id": node_id,
+                    "hostname": hostname,
+                    "ip": ip,
+                    "os": test_info.get('os', 'Ubuntu Linux'),
+                    "poll_status": poll_result.get('status')
+                })
+            except Exception as e:
+                self.send_json(500, {"status": "error", "error": str(e)})
+
+        elif path == '/api/ssh/refresh':
+            try:
+                content_len = int(self.headers.get('Content-Length', 0))
+                body = self.rfile.read(content_len) if content_len > 0 else b'{}'
+                req_data = json.loads(body.decode('utf-8')) if body else {}
+                node_id = req_data.get('node_id')
+
+                if not node_id and '?' in self.path:
+                    q = urllib.parse.parse_qs(self.path.split('?')[1])
+                    node_id = q.get('node_id', [None])[0]
+
+                if not node_id:
+                    self.send_json(400, {"status": "error", "error": "node_id is required"})
+                    return
+
+                res = ssh_monitor.poll_node_now(node_id)
+                self.send_json(200, {"status": "ok", "message": f"Polled node {node_id}", "result": res})
+            except Exception as e:
+                self.send_json(500, {"status": "error", "error": str(e)})
+
+        elif path == '/api/ssh/remove':
+            try:
+                content_len = int(self.headers.get('Content-Length', 0))
+                body = self.rfile.read(content_len) if content_len > 0 else b'{}'
+                req_data = json.loads(body.decode('utf-8')) if body else {}
+                node_id = req_data.get('node_id')
+
+                if not node_id and '?' in self.path:
+                    q = urllib.parse.parse_qs(self.path.split('?')[1])
+                    node_id = q.get('node_id', [None])[0]
+
+                if not node_id:
+                    self.send_json(400, {"status": "error", "error": "node_id is required"})
+                    return
+
+                with FLEET_LOCK:
+                    FLEET_NODES.pop(node_id, None)
+
+                database.delete_ssh_node(node_id)
+                self.send_json(200, {"status": "ok", "message": f"Successfully removed {node_id}"})
+            except Exception as e:
+                self.send_json(500, {"status": "error", "error": str(e)})
 
         else:
             self.send_json(404, {"error": "Endpoint not found"})
@@ -686,18 +948,44 @@ def background_maintenance_worker(retention_days=DEFAULT_RETENTION_DAYS):
 def load_initial_nodes_from_db():
     """Restores registered nodes from database so history is preserved across server restarts."""
     nodes = database.get_all_nodes()
+    ssh_nodes_map = {sn['node_id']: sn for sn in database.get_all_ssh_nodes()}
     with FLEET_LOCK:
         for n in nodes:
             nid = n['node_id']
             # Load processes snapshot
             n['processes'] = database.get_node_latest_processes(nid)
-            # Default to OFFLINE until new heartbeat is received
-            n['status'] = 'OFFLINE'
+            # Check if this is an SSH agentless node
+            if nid in ssh_nodes_map or n.get('ip') in {sn['ip'] for sn in ssh_nodes_map.values()}:
+                n['is_ssh_agentless'] = True
+                n['status'] = 'ONLINE'
+            else:
+                n['is_ssh_agentless'] = False
+                n['status'] = 'OFFLINE'
+
+            # Load latest telemetry snapshot if available
+            latest_tel = database.get_telemetry_history(nid, hours=24, limit=1)
+            if latest_tel:
+                last_pt = latest_tel[-1]
+                n['cpu_percent'] = last_pt.get('cpu_percent', 0.0)
+                n['ram_percent'] = last_pt.get('ram_percent', 0.0)
+                n['disk_percent'] = last_pt.get('disk_percent', 0.0)
+                n['gpu_percent'] = last_pt.get('gpu_percent', 0.0)
+                n['gpu_name'] = last_pt.get('gpu_name', '')
+                n['health'] = last_pt.get('health', 'HEALTHY')
+                n['last_seen'] = last_pt.get('timestamp', time.time())
+                n['last_seen_time'] = last_pt.get('time_str', '').split()[-1] if last_pt.get('time_str') else 'N/A'
+            else:
+                n['cpu_percent'] = 0.0
+                n['ram_percent'] = 0.0
+                n['disk_percent'] = 0.0
+                n['gpu_percent'] = 0.0
+                n['gpu_name'] = ''
+
             FLEET_NODES[nid] = n
     if nodes:
         print(f" [*] Loaded {len(nodes)} previously registered computers from persistent database.")
 
-def run_master_server(host='0.0.0.0', port=8080, auth_key=DEFAULT_AUTH_KEY, retention_days=DEFAULT_RETENTION_DAYS, manual_interface=None, manual_ip=None):
+def run_master_server(host='0.0.0.0', port=8082, auth_key=DEFAULT_AUTH_KEY, retention_days=DEFAULT_RETENTION_DAYS, manual_interface=None, manual_ip=None):
     global SERVER_AUTH_KEY, DISCOVERY_SERVICE
     SERVER_AUTH_KEY = auth_key
 
@@ -719,7 +1007,7 @@ def run_master_server(host='0.0.0.0', port=8080, auth_key=DEFAULT_AUTH_KEY, rete
         server = ThreadedHTTPServer((host, port), MasterRequestHandler)
     except OSError as e:
         if e.errno == 98:
-            for alt_port in [8082, 8085, 8000, 8888]:
+            for alt_port in [8080, 8085, 8000, 8888]:
                 try:
                     server = ThreadedHTTPServer((host, alt_port), MasterRequestHandler)
                     print(f" [!] Port {port} was in use; automatically bound to alternate port {alt_port}.")
@@ -737,6 +1025,9 @@ def run_master_server(host='0.0.0.0', port=8080, auth_key=DEFAULT_AUTH_KEY, rete
     # Start background database maintenance & reporting worker
     maint_thread = threading.Thread(target=background_maintenance_worker, args=(retention_days,), daemon=True, name="MaintenanceWorker")
     maint_thread.start()
+
+    # Start autonomous SSH agentless polling monitor
+    ssh_monitor.init_ssh_monitor(FLEET_NODES, FLEET_LOCK)
 
     print("\n" + "=" * 76)
     print("      PROCESSSHIELD FULLY AUTOMATED MASTER SERVER & FLEET GUARDIAN   ")
@@ -783,6 +1074,7 @@ def run_master_server(host='0.0.0.0', port=8080, auth_key=DEFAULT_AUTH_KEY, rete
         print("\n[*] Shutting down Master Server...")
     finally:
         global SIMULATOR_PROCESS
+        ssh_monitor.stop_ssh_monitor()
         if SIMULATOR_PROCESS is not None and SIMULATOR_PROCESS.poll() is None:
             SIMULATOR_PROCESS.terminate()
         if DISCOVERY_SERVICE:
@@ -794,7 +1086,7 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description="ProcessShield Automated Master Server")
     parser.add_argument("--host", default="0.0.0.0", help="Binding host (default: 0.0.0.0)")
-    parser.add_argument("--port", type=int, default=8080, help="Port to listen on (default: 8080)")
+    parser.add_argument("--port", type=int, default=8082, help="Port to listen on (default: 8082)")
     parser.add_argument("--auth-key", default=DEFAULT_AUTH_KEY, help=f"Security key (default: {DEFAULT_AUTH_KEY})")
     parser.add_argument("--retention-days", type=int, default=DEFAULT_RETENTION_DAYS, help=f"Data retention in days (default: {DEFAULT_RETENTION_DAYS})")
     parser.add_argument("--interface", default=None, help="Force primary network interface")

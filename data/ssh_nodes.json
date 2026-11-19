@@ -1,0 +1,30 @@
+[
+  {
+    "node_id": "sjt418scope069 (10.30.158.79)",
+    "hostname": "sjt418scope069",
+    "ip": "10.30.158.79",
+    "port": 22,
+    "username": "adminuser",
+    "auth_type": "password",
+    "enc_secret": "M@chin@!105",
+    "key_path": "",
+    "auto_poll": true,
+    "poll_interval_sec": 10,
+    "last_status": "ONLINE",
+    "last_polled": 1795059699.274
+  },
+  {
+    "node_id": "sjt418scope065 (10.30.158.75)",
+    "hostname": "sjt418scope065",
+    "ip": "10.30.158.75",
+    "port": 22,
+    "username": "adminuser",
+    "auth_type": "password",
+    "enc_secret": "M@chin@!105",
+    "key_path": "",
+    "auto_poll": true,
+    "poll_interval_sec": 10,
+    "last_status": "ONLINE",
+    "last_polled": 1795089153.197
+  }
+]

@@ -137,6 +137,52 @@ def init_db():
         conn.execute("CREATE INDEX IF NOT EXISTS idx_alerts_time ON alerts(timestamp);")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_daily_reports_date ON daily_reports(report_date);")
 
+        # 6. SSH Agentless Nodes Table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS ssh_nodes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                node_id TEXT UNIQUE NOT NULL,
+                hostname TEXT NOT NULL,
+                ip TEXT UNIQUE NOT NULL,
+                port INTEGER DEFAULT 22,
+                username TEXT NOT NULL,
+                auth_type TEXT NOT NULL,
+                enc_secret TEXT,
+                key_path TEXT,
+                auto_poll INTEGER DEFAULT 1,
+                poll_interval_sec INTEGER DEFAULT 10,
+                consecutive_failures INTEGER DEFAULT 0,
+                last_status TEXT DEFAULT 'ONLINE',
+                last_polled REAL DEFAULT 0,
+                last_software_scan REAL DEFAULT 0,
+                created_at REAL NOT NULL,
+                updated_at REAL NOT NULL
+            );
+        """)
+
+        # 7. SSH Host Keys Security Table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS ssh_host_keys (
+                ip TEXT PRIMARY KEY,
+                port INTEGER DEFAULT 22,
+                key_type TEXT NOT NULL,
+                key_fingerprint TEXT NOT NULL,
+                public_key TEXT NOT NULL,
+                trusted_at REAL NOT NULL
+            );
+        """)
+
+        # 8. SSH Software Inventory Cache Table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS ssh_software_inventory (
+                node_id TEXT PRIMARY KEY,
+                packages_json TEXT NOT NULL,
+                total_count INTEGER DEFAULT 0,
+                updated_at REAL NOT NULL
+            );
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_ssh_nodes_ip ON ssh_nodes(ip);")
+
 def upsert_node(node_dict):
     """Inserts or updates node registration."""
     conn = get_connection()
@@ -222,6 +268,21 @@ def record_telemetry(node_dict):
 
     return node_id
 
+log_telemetry = record_telemetry
+
+def save_process_snapshot(node_id, procs):
+    """Persists process snapshot list for a given node."""
+    conn = get_connection()
+    now = time.time()
+    with conn:
+        conn.execute("""
+            INSERT INTO process_snapshots (node_id, updated_at, processes_json)
+            VALUES (?, ?, ?)
+            ON CONFLICT(node_id) DO UPDATE SET
+                updated_at=excluded.updated_at,
+                processes_json=excluded.processes_json;
+        """, (node_id, now, json.dumps(procs)))
+
 def update_node_status(node_id, status, health=None):
     """Updates status (e.g. OFFLINE) and optional health in nodes table."""
     conn = get_connection()
@@ -300,6 +361,13 @@ def record_alert(node_id, level, message):
             INSERT INTO alerts (node_id, timestamp, time_str, level, message, resolved)
             VALUES (?, ?, ?, ?, ?, 0);
         """, (node_id, now, time_str, level, message))
+
+def log_alert(alert_dict):
+    """Wrapper to log alert from dictionary."""
+    if isinstance(alert_dict, dict):
+        record_alert(alert_dict.get('node_id'), alert_dict.get('level', 'WARNING'), alert_dict.get('message', ''))
+    else:
+        record_alert(str(alert_dict), 'WARNING', '')
 
 def get_recent_alerts(limit=50):
     """Fetches the most recent alerts."""
@@ -651,3 +719,142 @@ def export_software_xlsx(hostname=None, packages=None, sys_type=None):
     with formatted headers, auto-adjusted column widths, and text-preserved versions.
     """
     return software_inventory.generate_software_xlsx(packages=packages, hostname=hostname, sys_type=sys_type)
+
+# ==============================================================================
+# SSH AGENTLESS LAB COMPUTER MANAGEMENT
+# ==============================================================================
+
+def get_ssh_host_key(ip):
+    """Retrieves recorded host key for an IP to detect tampering."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM ssh_host_keys WHERE ip=?;", (ip,))
+    row = cur.fetchone()
+    return dict(row) if row else None
+
+def save_ssh_host_key(ip, port, key_type, key_fingerprint, public_key):
+    """Records trusted SSH host key in database."""
+    conn = get_connection()
+    now = time.time()
+    with conn:
+        conn.execute("""
+            INSERT INTO ssh_host_keys (ip, port, key_type, key_fingerprint, public_key, trusted_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(ip) DO UPDATE SET
+                port=excluded.port,
+                key_type=excluded.key_type,
+                key_fingerprint=excluded.key_fingerprint,
+                public_key=excluded.public_key,
+                trusted_at=excluded.trusted_at;
+        """, (ip, port or 22, key_type, key_fingerprint, public_key, now))
+
+def register_ssh_node(data):
+    """Stores SSH agentless configuration in SQLite database."""
+    conn = get_connection()
+    now = time.time()
+    node_id = data.get('node_id') or f"{data.get('hostname')} ({data.get('ip')})"
+    with conn:
+        conn.execute("""
+            INSERT INTO ssh_nodes (
+                node_id, hostname, ip, port, username, auth_type,
+                enc_secret, key_path, auto_poll, poll_interval_sec,
+                consecutive_failures, last_status, last_polled, last_software_scan,
+                created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(ip) DO UPDATE SET
+                node_id=excluded.node_id,
+                hostname=excluded.hostname,
+                port=excluded.port,
+                username=excluded.username,
+                auth_type=excluded.auth_type,
+                enc_secret=excluded.enc_secret,
+                key_path=excluded.key_path,
+                auto_poll=excluded.auto_poll,
+                last_status='ONLINE',
+                consecutive_failures=0,
+                updated_at=excluded.updated_at;
+        """, (
+            node_id, data['hostname'], data['ip'], data.get('port', 22), data['username'],
+            data['auth_type'], data.get('enc_secret', ''), data.get('key_path', ''),
+            data.get('auto_poll', 1), data.get('poll_interval_sec', 10),
+            0, 'ONLINE', now, 0, now, now
+        ))
+    return node_id
+
+def get_all_ssh_nodes():
+    """Returns list of all registered SSH nodes."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM ssh_nodes ORDER BY hostname ASC;")
+    return [dict(r) for r in cur.fetchall()]
+
+def get_ssh_node(node_id):
+    """Retrieves single SSH node by node_id or IP."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM ssh_nodes WHERE node_id=? OR ip=?;", (node_id, node_id))
+    row = cur.fetchone()
+    return dict(row) if row else None
+
+def update_ssh_node_poll(node_id, status='ONLINE', failures=0, software_scanned=False):
+    """Updates last polled timestamp and failure count."""
+    conn = get_connection()
+    now = time.time()
+    with conn:
+        if software_scanned:
+            conn.execute("""
+                UPDATE ssh_nodes SET
+                    last_status=?,
+                    consecutive_failures=?,
+                    last_polled=?,
+                    last_software_scan=?,
+                    updated_at=?
+                WHERE node_id=? OR ip=?;
+            """, (status, failures, now, now, now, node_id, node_id))
+        else:
+            conn.execute("""
+                UPDATE ssh_nodes SET
+                    last_status=?,
+                    consecutive_failures=?,
+                    last_polled=?,
+                    updated_at=?
+                WHERE node_id=? OR ip=?;
+            """, (status, failures, now, now, node_id, node_id))
+
+def delete_ssh_node(node_id):
+    """Removes an SSH node and its software inventory from database."""
+    conn = get_connection()
+    with conn:
+        conn.execute("DELETE FROM ssh_nodes WHERE node_id=? OR ip=?;", (node_id, node_id))
+        conn.execute("DELETE FROM ssh_software_inventory WHERE node_id=?;", (node_id,))
+    delete_node(node_id)
+
+def save_ssh_software(node_id, packages):
+    """Caches installed software catalog for an SSH node."""
+    conn = get_connection()
+    now = time.time()
+    with conn:
+        conn.execute("""
+            INSERT INTO ssh_software_inventory (node_id, packages_json, total_count, updated_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(node_id) DO UPDATE SET
+                packages_json=excluded.packages_json,
+                total_count=excluded.total_count,
+                updated_at=excluded.updated_at;
+        """, (node_id, json.dumps(packages), len(packages), now))
+
+def get_ssh_software(node_id):
+    """Retrieves cached software inventory for an SSH node."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM ssh_software_inventory WHERE node_id=?;", (node_id,))
+    row = cur.fetchone()
+    if not row:
+        cur.execute("SELECT * FROM ssh_software_inventory WHERE node_id LIKE ?;", (f"%{node_id}%",))
+        row = cur.fetchone()
+    if row:
+        try:
+            return json.loads(row['packages_json'])
+        except Exception:
+            return []
+    return None

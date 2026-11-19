@@ -1,0 +1,29 @@
+{
+  "name": "processshield",
+  "version": "2.0.0",
+  "description": "ProcessShield - Intelligent Process Resource Guardian & Distributed Fleet Manager (MERN Stack)",
+  "private": true,
+  "scripts": {
+    "start": "npm run start:backend",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "build": "npm run build:backend && npm run build:frontend",
+    "migrate": "cd backend && npm run migrate",
+    "agent": "python agent.py --server http://127.0.0.1:5000",
+    "simulator": "python simulator.py --server http://127.0.0.1:5000",
+    "test:algorithms": "python verify_algorithms.py"
+  },
+  "keywords": [
+    "operating-systems",
+    "mern-stack",
+    "process-monitor",
+    "deadlock-avoidance",
+    "bankers-algorithm",
+    "wait-for-graph",
+    "mongodb"
+  ],
+  "author": "ProcessShield Team",
+  "license": "MIT"
+}

@@ -46,14 +46,15 @@ export class DeviceRepository {
 
   async upsert(data: Partial<IDevice>): Promise<any> {
     const existing = memoryDevices.get(data.node_id!) || {};
-    const updated = { ...existing, ...data };
+    const finalLabId = data.labId !== undefined ? data.labId : (existing.labId || 'lab-cs-1');
+    const updated = { ...existing, ...data, labId: finalLabId };
     memoryDevices.set(data.node_id!, updated);
 
     if (isDatabaseConnected()) {
       try {
         await Device.findOneAndUpdate(
           { node_id: data.node_id },
-          { $set: data },
+          { $set: { ...data, labId: finalLabId } },
           { upsert: true, new: true }
         );
       } catch {}

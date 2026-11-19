@@ -3,6 +3,13 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Node / MERN Stack
+node_modules/
+dist/
+.env
+.env.local
+*.tsbuildinfo
+
 # C++ Build objects
 obj/
 *.o
@@ -11,6 +18,9 @@ obj/
 # Local databases and runtime state
 data/*.db-shm
 data/*.db-wal
+data/*.key
+data/.*.key
+data/*_backup*.db
 
 # Log files
 logs/*.log
