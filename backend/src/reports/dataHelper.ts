@@ -17,53 +17,8 @@ let memorySeeded = false;
 
 export async function ensureMemorySeeded() {
   if (memorySeeded) return;
-  const existingLabs = await labRepo.getAll();
-  if (existingLabs.length <= 2) {
-    const seed = generateSeedData(60);
-    for (const lab of seed.labs) {
-      try {
-        await labRepo.create(lab);
-      } catch {}
-    }
-    for (const dev of seed.devices) {
-      try {
-        await deviceRepository.upsert(dev);
-      } catch {}
-    }
-    for (const s of seed.sessions) {
-      try {
-        await sessionRepo.create({
-          nodeId: s.nodeId,
-          labId: s.labId,
-          username: s.username,
-          loginAt: s.loginAt
-        });
-      } catch {}
-    }
-    await hourlyRollupRepository.insertMany(seed.rollups);
-    for (const sw of seed.softwareList) {
-      try {
-        await softwareRepository.save(sw.node_id, sw.hostname, sw.packages);
-      } catch {}
-    }
-    await faultRepository.insertMany(seed.faults);
-    for (const v of seed.violations) {
-      try {
-        await violationRepository.create({
-          nodeId: v.nodeId,
-          labId: v.labId,
-          username: v.username,
-          processName: v.processName,
-          action: v.action
-        });
-      } catch {}
-    }
-    for (const a of seed.alerts) {
-      try {
-        await alertRepository.create(a);
-      } catch {}
-    }
-  }
+  // Purge any dummy generated nodes so only real systems are present
+  await deviceRepository.purgeDummyNodes();
   memorySeeded = true;
 }
 

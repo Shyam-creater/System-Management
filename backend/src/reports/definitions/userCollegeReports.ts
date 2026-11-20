@@ -220,7 +220,7 @@ export const C1_Report: ReportConfig = {
 export const C2_Report: ReportConfig = {
   id: 'C2',
   title: 'Lab Comparison',
-  category: 'college',
+  category: 'lab',
   description: 'Side-by-side comparative benchmarking across selected campus computer laboratories.',
   filters: ['dateRange', 'lab'],
   columns: [

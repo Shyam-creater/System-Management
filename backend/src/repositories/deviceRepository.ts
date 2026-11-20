@@ -7,22 +7,30 @@ export class DeviceRepository {
   async findAll(includeSimulated = false): Promise<any[]> {
     if (isDatabaseConnected()) {
       try {
-        const query = includeSimulated ? {} : { is_simulated: { $ne: true } };
+        const query: any = {
+          node_id: { $not: /^lab-.*-pc\d+/i }
+        };
+        if (!includeSimulated) {
+          query.is_simulated = { $ne: true };
+        }
         const fromDb = await Device.find(query).lean();
         if (fromDb.length > 0) return fromDb;
       } catch {}
     }
-    const all = Array.from(memoryDevices.values());
+    const all = Array.from(memoryDevices.values()).filter(d => !d.node_id?.match(/^lab-.*-pc\d+/i));
     return includeSimulated ? all : all.filter(d => !d.is_simulated);
   }
 
   async findByLab(labId: string): Promise<any[]> {
     if (isDatabaseConnected()) {
       try {
-        return await Device.find({ labId }).lean();
+        return await Device.find({
+          labId,
+          node_id: { $not: /^lab-.*-pc\d+/i }
+        }).lean();
       } catch {}
     }
-    return Array.from(memoryDevices.values()).filter(d => d.labId === labId);
+    return Array.from(memoryDevices.values()).filter(d => d.labId === labId && !d.node_id?.match(/^lab-.*-pc\d+/i));
   }
 
   async findUnassigned(): Promise<any[]> {
@@ -60,6 +68,25 @@ export class DeviceRepository {
       } catch {}
     }
     return updated;
+  }
+
+  async purgeDummyNodes(): Promise<number> {
+    let purgedCount = 0;
+    for (const [id, dev] of memoryDevices.entries()) {
+      if (id.startsWith('lab-') && id.includes('-pc')) {
+        memoryDevices.delete(id);
+        purgedCount++;
+      }
+    }
+    if (isDatabaseConnected()) {
+      try {
+        const res = await Device.deleteMany({
+          node_id: { $regex: /^lab-.*-pc\d+/i }
+        });
+        return res.deletedCount || purgedCount;
+      } catch {}
+    }
+    return purgedCount;
   }
 
   async purgeOffline(thresholdSeconds = 15): Promise<number> {

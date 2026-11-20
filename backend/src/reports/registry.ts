@@ -1,67 +1,63 @@
 import { ReportConfig, UserScope, QueryResult, SortLevel, ReportFilterValues } from './types.js';
 import {
-  L1_Report,
   L2_Report,
-  L3_Report,
   L4_Report,
-  L5_Report,
-  L6_Report,
   L7_Report,
   L8_Report,
-  L9_Report,
-  L10_Report,
-  L11_Report,
-  L12_Report
+  L10_Report
 } from './definitions/labReports.js';
 import {
   S1_Report,
   S2_Report,
   S3_Report,
-  S4_Report,
   S5_Report,
   S6_Report,
-  S7_Report,
-  S8_Report,
-  S9_Report
+  S7_Report
 } from './definitions/systemReports.js';
 import {
-  U1_Report,
-  C1_Report,
-  C2_Report,
-  C3_Report
+  C2_Report
 } from './definitions/userCollegeReports.js';
 
 class ReportRegistry {
   private reports = new Map<string, ReportConfig>();
 
   constructor() {
-    this.register(L1_Report);
-    this.register(L2_Report);
-    this.register(L3_Report);
-    this.register(L4_Report);
-    this.register(L5_Report);
-    this.register(L6_Report);
-    this.register(L7_Report);
-    this.register(L8_Report);
-    this.register(L9_Report);
-    this.register(L10_Report);
-    this.register(L11_Report);
-    this.register(L12_Report);
-
-    this.register(S1_Report);
-    this.register(S2_Report);
-    this.register(S3_Report);
-    this.register(S4_Report);
-    this.register(S5_Report);
+    // 12 Curated Reports Only:
+    // 1. Processes
     this.register(S6_Report);
-    this.register(S7_Report);
-    this.register(S8_Report);
-    this.register(S9_Report);
 
-    this.register(U1_Report);
-    this.register(C1_Report);
+    // 2. Performance & Telemetry Reports
+    this.register(S2_Report);
+
+    // 3. Installed Software Inventory
+    this.register(S5_Report);
+
+    // 4. Lab Usage Trend
+    this.register(L2_Report);
+
+    // 5. Session Log
+    this.register(L4_Report);
+
+    // 6. Alerts
+    this.register(L7_Report);
+
+    // 7. Software Compliance
+    this.register(L8_Report);
+
+    // 8. Class-hour Utilization
+    this.register(L10_Report);
+
+    // 9. System Utilization
+    this.register(S1_Report);
+
+    // 10. Memory Usage
+    this.register(S3_Report);
+
+    // 11. Hardware Inventory
+    this.register(S7_Report);
+
+    // 12. Lab Comparison
     this.register(C2_Report);
-    this.register(C3_Report);
   }
 
   public register(report: ReportConfig) {
@@ -76,11 +72,6 @@ class ReportRegistry {
     const list: Array<Omit<ReportConfig, 'query'>> = [];
 
     for (const report of this.reports.values()) {
-      // Role scoping rule: viewers cannot view command or security audit reports
-      if (scope.role === 'viewer' && report.id === 'L9') {
-        continue;
-      }
-
       list.push({
         id: report.id,
         title: report.title,
@@ -110,11 +101,6 @@ class ReportRegistry {
     const report = this.getReport(id);
     if (!report) {
       throw new Error(`Report "${id}" not found in catalog.`);
-    }
-
-    // Role check
-    if (scope.role === 'viewer' && report.id === 'L9') {
-      throw new Error(`Unauthorized: Viewers cannot access command history.`);
     }
 
     const safeFilters: ReportFilterValues = params.filters || {};

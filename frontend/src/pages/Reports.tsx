@@ -38,7 +38,7 @@ export const Reports: React.FC = () => {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
 
-  const [selectedReportId, setSelectedReportId] = useState<string>(urlReportId || 'L1');
+  const [selectedReportId, setSelectedReportId] = useState<string>(urlReportId || 'S1');
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(25);
   const [filters, setFilters] = useState<any>({ dateRange: { preset: 'last30days' } });
@@ -68,6 +68,12 @@ export const Reports: React.FC = () => {
   // Current Report Definition
   const currentReport = useMemo(() => {
     return catalog.find((r: any) => r.id === selectedReportId) || catalog[0];
+  }, [catalog, selectedReportId]);
+
+  useEffect(() => {
+    if (catalog.length > 0 && !catalog.find((r: any) => r.id === selectedReportId)) {
+      setSelectedReportId(catalog[0].id);
+    }
   }, [catalog, selectedReportId]);
 
   // Set default visible columns when report changes

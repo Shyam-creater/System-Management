@@ -26,9 +26,7 @@ export const ReportCatalog: React.FC<ReportCatalogProps> = ({
   const categories = [
     { id: 'all', label: 'All', icon: Layers },
     { id: 'lab', label: 'Labs', icon: Building },
-    { id: 'system', label: 'Systems', icon: Monitor },
-    { id: 'user', label: 'Users', icon: Users },
-    { id: 'college', label: 'College', icon: Award }
+    { id: 'system', label: 'Systems', icon: Monitor }
   ];
 
   const filteredCatalog = useMemo(() => {
