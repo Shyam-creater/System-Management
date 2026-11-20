@@ -213,4 +213,39 @@ export const schedulesApi = {
     api.delete(`/schedules/${id}`).then(res => res.data)
 };
 
+export const reportsModuleApi = {
+  getCatalog: (): Promise<any[]> => api.get('/reports/catalog').then(res => res.data.catalog),
+  runReport: (id: string, params: any): Promise<any> => api.post(`/reports/${id}/run`, params).then(res => res.data),
+  exportReport: async (id: string, format: 'xlsx' | 'pdf' | 'csv', params: any, defaultFilename?: string) => {
+    const res = await api.post(`/reports/${id}/export?format=${format}`, params, { responseType: 'blob' });
+    const blob = new Blob([res.data], {
+      type: format === 'xlsx'
+        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        : format === 'pdf'
+        ? 'application/pdf'
+        : 'text/csv;charset=utf-8;'
+    });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const disposition = res.headers['content-disposition'];
+    let filename = defaultFilename || `ProcessShield_Report_${id}_${new Date().toISOString().split('T')[0]}.${format}`;
+    if (disposition && disposition.indexOf('filename=') !== -1) {
+      const match = disposition.match(/filename="?([^";]+)"?/);
+      if (match && match[1]) filename = match[1];
+    }
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
+  getPresets: (reportId?: string): Promise<any[]> =>
+    api.get(`/reports/presets${reportId ? `?reportId=${reportId}` : ''}`).then(res => res.data.presets),
+  savePreset: (data: any): Promise<any> =>
+    api.post('/reports/presets', data).then(res => res.data.preset),
+  deletePreset: (id: string): Promise<{ success: boolean }> =>
+    api.delete(`/reports/presets/${id}`).then(res => res.data)
+};
+
 export default api;

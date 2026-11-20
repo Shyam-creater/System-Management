@@ -11,6 +11,7 @@ import { BankersAlgorithm } from '../pages/BankersAlgorithm';
 import { Alerts } from '../pages/Alerts';
 import { LogsPage } from '../pages/LogsPage';
 import { Reports } from '../pages/Reports';
+import { DailyReports } from '../pages/DailyReports';
 import { SoftwareInventory } from '../pages/SoftwareInventory';
 import { SimulatorPage } from '../pages/SimulatorPage';
 import { SettingsPage } from '../pages/SettingsPage';
@@ -34,6 +35,8 @@ export const AppRouter: React.FC = () => {
       <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
       <Route path="/logs" element={<ProtectedRoute><LogsPage /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+      <Route path="/reports/:id" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+      <Route path="/daily-reports" element={<ProtectedRoute><DailyReports /></ProtectedRoute>} />
       <Route path="/software" element={<ProtectedRoute><SoftwareInventory /></ProtectedRoute>} />
       <Route path="/simulator" element={<ProtectedRoute><SimulatorPage /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />

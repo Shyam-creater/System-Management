@@ -1,465 +1,705 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  BarChart3,
-  ArrowLeft,
   Download,
-  Zap,
-  Monitor,
-  Cpu,
-  HardDrive,
-  CheckCircle2,
-  Calendar,
-  Building,
-  Users,
-  Clock,
-  Flame,
-  FileSpreadsheet
+  FileSpreadsheet,
+  FileText,
+  FileDown,
+  Columns,
+  ArrowUpDown,
+  Bookmark,
+  BookmarkPlus,
+  Loader2,
+  AlertCircle,
+  HelpCircle,
+  ChevronLeft,
+  ChevronRight,
+  RotateCcw,
+  Sparkles,
+  Layers,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer
-} from 'recharts';
-import { reportsApi, fleetApi, labsApi, sessionsApi } from '../services/api';
-import { DailyReportItem, NodeInfo } from '../types';
 import { PageHeader } from '../components/layout/PageHeader';
+import { ReportCatalog } from '../components/reports/ReportCatalog';
+import { FilterBar } from '../components/reports/FilterBar';
+import { ColumnChooserModal } from '../components/reports/ColumnChooserModal';
+import { MultiSortModal } from '../components/reports/MultiSortModal';
+import { SavePresetModal } from '../components/reports/SavePresetModal';
+import { ReportChart } from '../components/reports/ReportChart';
+import { reportsModuleApi, labsApi, fleetApi } from '../services/api';
+import { useAuthStore } from '../store/useAuthStore';
 
 export const Reports: React.FC = () => {
+  const { id: urlReportId } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [labFilter, setLabFilter] = useState<string>('ALL');
+  const { user } = useAuthStore();
+
+  const [selectedReportId, setSelectedReportId] = useState<string>(urlReportId || 'L1');
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(25);
+  const [filters, setFilters] = useState<any>({ dateRange: { preset: 'last30days' } });
+  const [sort, setSort] = useState<Array<{ key: string; dir: 'asc' | 'desc' }>>([]);
+  const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
+
+  // Modals state
+  const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
+  const [isSortModalOpen, setIsSortModalOpen] = useState(false);
+  const [isPresetModalOpen, setIsPresetModalOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState<string | null>(null);
+  const [exportNotice, setExportNotice] = useState<string | null>(null);
+
+  // Sync state with URL
+  useEffect(() => {
+    if (urlReportId && urlReportId !== selectedReportId) {
+      setSelectedReportId(urlReportId.toUpperCase());
+    }
+  }, [urlReportId]);
+
+  // Load Catalog
+  const { data: catalog = [], isLoading: isCatalogLoading } = useQuery({
+    queryKey: ['reports_catalog'],
+    queryFn: reportsModuleApi.getCatalog
+  });
+
+  // Current Report Definition
+  const currentReport = useMemo(() => {
+    return catalog.find((r: any) => r.id === selectedReportId) || catalog[0];
+  }, [catalog, selectedReportId]);
+
+  // Set default visible columns when report changes
+  useEffect(() => {
+    if (currentReport) {
+      const defaultCols = currentReport.columns
+        .filter((c: any) => c.defaultVisible)
+        .map((c: any) => c.key);
+      setVisibleColumns(defaultCols);
+      setSort(currentReport.defaultSort || []);
+      setPage(1);
+    }
+  }, [currentReport?.id]);
+
+  // Auxiliary data: Labs and Systems for filter dropdowns
+  const { data: labsData } = useQuery({
+    queryKey: ['labs'],
+    queryFn: labsApi.getLabs
+  });
+  const labsList = labsData?.labs || [];
 
   const { data: fleetData } = useQuery({
     queryKey: ['nodes'],
-    queryFn: fleetApi.getNodes,
-    refetchInterval: 5000
+    queryFn: fleetApi.getNodes
+  });
+  const systemsList = useMemo(() => {
+    if (!fleetData?.nodes) return [];
+    return Object.values(fleetData.nodes);
+  }, [fleetData]);
+
+  // Presets Query
+  const { data: presets = [] } = useQuery({
+    queryKey: ['reports_presets', selectedReportId],
+    queryFn: () => reportsModuleApi.getPresets(selectedReportId)
   });
 
-  const { data: labsData } = useQuery({
-    queryKey: ['labs'],
-    queryFn: labsApi.getLabs,
-    refetchInterval: 10000
+  // Run Report Query
+  const {
+    data: reportResult,
+    isLoading: isReportLoading,
+    isError: isReportError,
+    error: reportError,
+    refetch
+  } = useQuery({
+    queryKey: ['report_run', selectedReportId, filters, sort, visibleColumns, page, pageSize],
+    queryFn: () =>
+      reportsModuleApi.runReport(selectedReportId, {
+        filters,
+        sort,
+        columns: visibleColumns,
+        page,
+        pageSize
+      }),
+    enabled: Boolean(currentReport)
   });
-  const labs = labsData?.labs || [];
 
-  const { data: reportsData, isLoading: isReportsLoading } = useQuery({
-    queryKey: ['reports'],
-    queryFn: reportsApi.getReports
-  });
+  const handleSelectReport = (id: string) => {
+    setSelectedReportId(id);
+    navigate(`/reports/${id}`);
+  };
 
-  const generateMutation = useMutation({
-    mutationFn: reportsApi.generate,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['reports'] });
+  const handleHeaderSort = (key: string) => {
+    const existing = sort.find(s => s.key === key);
+    if (!existing) {
+      setSort([{ key, dir: 'asc' }]);
+    } else if (existing.dir === 'asc') {
+      setSort([{ key, dir: 'desc' }]);
+    } else {
+      setSort([]);
     }
-  });
+    setPage(1);
+  };
 
-  const rawNodes = fleetData?.nodes ? Object.values(fleetData.nodes) : [];
-  const nodes = rawNodes.length > 0 ? rawNodes : [];
-  const reports: DailyReportItem[] = reportsData?.reports || [];
+  const handleExport = async (format: 'xlsx' | 'pdf' | 'csv') => {
+    setIsExporting(format);
+    setExportNotice(
+      reportResult?.total && reportResult.total > 5000
+        ? `Preparing ${format.toUpperCase()} export (${reportResult.total.toLocaleString()} rows). This may take a few moments...`
+        : `Preparing ${format.toUpperCase()} export...`
+    );
 
-  const filteredNodes = nodes.filter(n => {
-    if (labFilter === 'ALL') return true;
-    if (labFilter === 'UNASSIGNED') return !n.labId;
-    return n.labId === labFilter;
-  });
-
-  const selectedNode = selectedNodeId ? nodes.find(n => n.node_id === selectedNodeId) : null;
-  const filteredReports = selectedNodeId
-    ? reports.filter(r => r.node_id === selectedNodeId)
-    : reports;
-
-  const isLabSelected = labFilter !== 'ALL' && labFilter !== 'UNASSIGNED';
-  const selectedLabObj = labs.find(l => l.id === labFilter);
-
-  const { data: labUsageData } = useQuery({
-    queryKey: ['labUsageReport', labFilter],
-    queryFn: () => labsApi.getLabUsage(labFilter, 7),
-    enabled: isLabSelected
-  });
-
-  const { data: labSessionsData } = useQuery({
-    queryKey: ['labSessionsReport', labFilter],
-    queryFn: () => sessionsApi.getSessions({ labId: labFilter, limit: 300 }),
-    enabled: isLabSelected
-  });
-
-  // Calculate Lab Analytics
-  const usageDays = labUsageData?.days || [];
-  const totalSessions7d = usageDays.reduce((acc: number, d: any) => acc + (d.sessions || 0), 0);
-  const totalHours7d = usageDays.reduce((acc: number, d: any) => acc + (d.hours || 0), 0);
-  const labSessions = labSessionsData?.sessions || [];
-  const uniqueStudentsSet = new Set(labSessions.map(s => s.username));
-
-  // Machine utilization ranking
-  const nodeSessionCounts: Record<string, number> = {};
-  for (const s of labSessions) {
-    nodeSessionCounts[s.nodeId] = (nodeSessionCounts[s.nodeId] || 0) + 1;
-  }
-  const labMachines = nodes.filter(n => n.labId === labFilter);
-  const sortedLabMachines = [...labMachines].sort((a, b) => (nodeSessionCounts[b.node_id] || 0) - (nodeSessionCounts[a.node_id] || 0));
-  const mostUsedMachines = sortedLabMachines.slice(0, 3);
-  const leastUsedMachines = [...sortedLabMachines].reverse().slice(0, 3);
-
-  // Peak-Hours Heatmap: 5 weekdays x 4 time blocks
-  const heatmapDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-  const heatmapSlots = [
-    { label: '08:00 - 11:00', start: 8, end: 11 },
-    { label: '11:00 - 14:00', start: 11, end: 14 },
-    { label: '14:00 - 17:00', start: 14, end: 17 },
-    { label: '17:00 - 20:00', start: 17, end: 20 }
-  ];
-  const heatmapMatrix: number[][] = heatmapDays.map(() => [0, 0, 0, 0]);
-
-  for (const s of labSessions) {
-    const d = new Date(s.loginAt);
-    const dayIdx = (d.getDay() + 6) % 7; // Convert Sun=0 to Mon=0
-    if (dayIdx >= 0 && dayIdx < 5) {
-      const h = d.getHours();
-      for (let si = 0; si < heatmapSlots.length; si++) {
-        if (h >= heatmapSlots[si].start && h < heatmapSlots[si].end) {
-          heatmapMatrix[dayIdx][si] += 1;
-        }
-      }
+    try {
+      await reportsModuleApi.exportReport(selectedReportId, format, {
+        filters,
+        sort,
+        columns: visibleColumns
+      });
+      setExportNotice(null);
+    } catch (err: any) {
+      alert(`Export failed: ${err.message || 'Unknown error'}`);
+      setExportNotice(null);
+    } finally {
+      setIsExporting(null);
     }
+  };
+
+  const handleSavePreset = async (name: string, isShared: boolean) => {
+    await reportsModuleApi.savePreset({
+      name,
+      reportId: selectedReportId,
+      isShared,
+      filters,
+      sort,
+      columns: visibleColumns
+    });
+    queryClient.invalidateQueries({ queryKey: ['reports_presets', selectedReportId] });
+  };
+
+  const handleLoadPreset = (preset: any) => {
+    if (preset.filters) setFilters(preset.filters);
+    if (preset.sort) setSort(preset.sort);
+    if (preset.columns && preset.columns.length > 0) setVisibleColumns(preset.columns);
+    setPage(1);
+  };
+
+  const handleDeletePreset = async (presetId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm('Delete this saved preset?')) {
+      await reportsModuleApi.deletePreset(presetId);
+      queryClient.invalidateQueries({ queryKey: ['reports_presets', selectedReportId] });
+    }
+  };
+
+  if (isCatalogLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50/60 p-8 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 text-[#1d68ff] animate-spin" />
+          <p className="text-sm font-semibold text-slate-600">Loading Report Catalog & Schemas...</p>
+        </div>
+      </div>
+    );
   }
 
-  const maxHeatVal = Math.max(1, ...heatmapMatrix.flat());
+  const activeColumnsList = currentReport?.columns?.filter((c: any) =>
+    visibleColumns.includes(c.key)
+  ) || [];
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Reports"
-        subtitle="Automated daily summaries, hardware peak telemetry, and uptime audits"
-      >
-        {selectedNodeId && (
-          <button
-            onClick={() => setSelectedNodeId(null)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold shadow-sm transition active:scale-95"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>All Workstations</span>
-          </button>
-        )}
+    <div className="min-h-screen bg-slate-50/60 pb-12">
+      {/* Top Header */}
+      <div className="px-8 pt-6">
+        <PageHeader
+          title="Campus Intelligence Reports"
+          subtitle="Generate, preview, and download institutional telemetry, occupancy, resource, and audit reports."
+        />
+      </div>
 
-        {!selectedNodeId && (
-          <div className="flex items-center gap-2">
-            <Building className="w-4 h-4 text-slate-400" />
-            <select
-              value={labFilter}
-              onChange={(e) => setLabFilter(e.target.value)}
-              className="text-xs font-semibold px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 focus:outline-none shadow-sm cursor-pointer"
-            >
-              <option value="ALL">All Computer Labs</option>
-              {labs.map(l => (
-                <option key={l.id} value={l.id}>{l.name}</option>
-              ))}
-              <option value="UNASSIGNED">Unassigned Only</option>
-            </select>
-          </div>
-        )}
+      {/* Main 2-Column Layout */}
+      <div className="px-8 mt-4 flex items-start gap-6">
+        {/* Left Column: Catalog Sidebar */}
+        <ReportCatalog
+          catalog={catalog}
+          selectedReportId={selectedReportId}
+          onSelectReport={handleSelectReport}
+        />
 
-        <button
-          onClick={() => generateMutation.mutate()}
-          disabled={generateMutation.isPending}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-500/20 transition active:scale-95"
-        >
-          <Zap className="w-3.5 h-3.5 text-amber-300" />
-          <span>{generateMutation.isPending ? 'Generating...' : 'Generate Daily Report'}</span>
-        </button>
-      </PageHeader>
+        {/* Right Column: Active Report Workspace */}
+        <div className="flex-1 min-w-0 space-y-4">
+          {/* Report Meta Card & Toolbar */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2.5 py-0.5 rounded-lg bg-blue-100 text-[#1d68ff] font-bold text-xs tracking-wide">
+                    {currentReport?.id}
+                  </span>
+                  <h2 className="text-lg font-black text-slate-900 tracking-tight">
+                    {currentReport?.title}
+                  </h2>
+                  {reportResult?.resolution && (
+                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-semibold">
+                      Data resolution: {reportResult.resolution}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 max-w-2xl leading-relaxed">
+                  {currentReport?.description}
+                </p>
+              </div>
 
-      {/* Lab Specific Utilization & Peak-Hours Report */}
-      {isLabSelected && !selectedNodeId && selectedLabObj && (
-        <div className="space-y-5 animate-fadeIn">
-          {/* Lab Header & Export Bar */}
-          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
-                <Building className="w-5 h-5 text-blue-600" />
-                <span>{selectedLabObj.name} Utilization & Peak-Hours Audit</span>
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Weekly aggregated student occupancy, hours, unique users, and peak usage patterns
-              </p>
-            </div>
+              {/* Action Buttons Toolbar */}
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Presets Menu */}
+                <div className="relative group">
+                  <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs transition-all">
+                    <Bookmark className="w-3.5 h-3.5 text-[#1d68ff]" />
+                    Presets ({presets.length})
+                  </button>
+                  <div className="absolute right-0 top-full mt-1.5 w-60 bg-white rounded-xl shadow-lg border border-slate-200 p-2 z-40 hidden group-hover:block divide-y divide-slate-100">
+                    <button
+                      onClick={() => setIsPresetModalOpen(true)}
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs font-semibold text-[#1d68ff] hover:bg-blue-50 rounded-lg transition-colors mb-1 text-left"
+                    >
+                      <BookmarkPlus className="w-3.5 h-3.5" />
+                      Save Current Filters
+                    </button>
+                    <div className="pt-1 space-y-0.5 max-h-48 overflow-y-auto">
+                      {presets.length === 0 ? (
+                        <p className="text-[11px] text-slate-400 p-2 text-center">
+                          No saved presets for this report
+                        </p>
+                      ) : (
+                        presets.map((p: any) => (
+                          <div
+                            key={p.id}
+                            onClick={() => handleLoadPreset(p)}
+                            className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 cursor-pointer group/item"
+                          >
+                            <div className="min-w-0 pr-2">
+                              <span className="text-xs font-medium text-slate-800 block truncate">
+                                {p.name}
+                              </span>
+                              {p.isShared && (
+                                <span className="text-[9px] font-bold text-blue-600 uppercase">
+                                  Shared
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeletePreset(p.id, e)}
+                              className="text-slate-300 hover:text-red-500 p-1 opacity-0 group-hover/item:opacity-100 transition-opacity"
+                            >
+                              &times;
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
 
-            <div className="flex items-center gap-2">
-              <a
-                href={sessionsApi.getExportUrl({ labId: labFilter })}
-                download
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 font-semibold text-xs border border-blue-200/80 transition shadow-sm"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Export Sessions CSV</span>
-              </a>
-              <a
-                href="/api/export/excel"
-                download
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-semibold text-xs border border-emerald-200/80 transition shadow-sm"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5" />
-                <span>Export Excel Report</span>
-              </a>
-            </div>
-          </div>
+                {/* Column Chooser Button */}
+                <button
+                  onClick={() => setIsColumnModalOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs transition-all"
+                >
+                  <Columns className="w-3.5 h-3.5 text-slate-500" />
+                  Columns ({visibleColumns.length})
+                </button>
 
-          {/* Metric Stats Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm">
-              <span className="text-[11px] font-semibold text-slate-400 block">7-Day Sessions</span>
-              <span className="text-2xl font-extrabold text-blue-600 mt-1 block">{totalSessions7d}</span>
-              <span className="text-[10px] text-slate-400 mt-0.5 block">Student Logins</span>
-            </div>
-            <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm">
-              <span className="text-[11px] font-semibold text-slate-400 block">Total Lab Hours</span>
-              <span className="text-2xl font-extrabold text-slate-900 mt-1 block">{totalHours7d.toFixed(1)} hrs</span>
-              <span className="text-[10px] text-emerald-600 mt-0.5 block">Occupancy Time</span>
-            </div>
-            <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm">
-              <span className="text-[11px] font-semibold text-slate-400 block">Unique Students</span>
-              <span className="text-2xl font-extrabold text-indigo-600 mt-1 block">{uniqueStudentsSet.size}</span>
-              <span className="text-[10px] text-slate-400 mt-0.5 block">Distinct Usernames</span>
-            </div>
-            <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm">
-              <span className="text-[11px] font-semibold text-slate-400 block">Avg Daily Hours</span>
-              <span className="text-2xl font-extrabold text-slate-900 mt-1 block">{(totalHours7d / 7).toFixed(1)} hrs</span>
-              <span className="text-[10px] text-slate-400 mt-0.5 block">Per Calendar Day</span>
-            </div>
-          </div>
+                {/* Multi-Sort Button */}
+                <button
+                  onClick={() => setIsSortModalOpen(true)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border shadow-2xs transition-all ${
+                    sort.length > 0
+                      ? 'bg-blue-50 border-blue-200 text-[#1d68ff]'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <ArrowUpDown className="w-3.5 h-3.5" />
+                  Sort {sort.length > 0 ? `(${sort.length})` : ''}
+                </button>
 
-          {/* Charts & Heatmap Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            {/* 7-Day Usage Trend Chart */}
-            <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-3">
-              <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                <BarChart3 className="w-3.5 h-3.5 text-blue-600" />
-                7-Day Lab Usage (Sessions & Occupancy Hours)
-              </h3>
-              <div className="h-48 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={usageDays}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                    <YAxis tick={{ fontSize: 10 }} />
-                    <Tooltip />
-                    <Area type="monotone" dataKey="sessions" name="Sessions" stroke="#1d68ff" fill="#dbeafe" />
-                    <Area type="monotone" dataKey="hours" name="Hours" stroke="#38bdf8" fill="#e0f2fe" />
-                  </AreaChart>
-                </ResponsiveContainer>
+                {/* Export Dropdown */}
+                <div className="relative group">
+                  <button
+                    disabled={isExporting !== null}
+                    className="flex items-center gap-2 px-4 py-1.5 bg-[#1d68ff] text-white rounded-xl text-xs font-bold hover:bg-blue-600 shadow-sm shadow-blue-500/25 transition-all disabled:opacity-50"
+                  >
+                    {isExporting ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Download className="w-3.5 h-3.5" />
+                    )}
+                    Export
+                  </button>
+                  <div className="absolute right-0 top-full mt-1.5 w-48 bg-white rounded-xl shadow-xl border border-slate-200 p-1.5 z-40 hidden group-hover:block space-y-1">
+                    <button
+                      onClick={() => handleExport('xlsx')}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg transition-colors text-left"
+                    >
+                      <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                      Excel Workbook (.xlsx)
+                    </button>
+                    <button
+                      onClick={() => handleExport('pdf')}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-red-50 hover:text-red-700 rounded-lg transition-colors text-left"
+                    >
+                      <FileText className="w-4 h-4 text-red-500" />
+                      PDF Document (.pdf)
+                    </button>
+                    <button
+                      onClick={() => handleExport('csv')}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-blue-50 hover:text-[#1d68ff] rounded-lg transition-colors text-left"
+                    >
+                      <FileDown className="w-4 h-4 text-blue-500" />
+                      CSV Spreadsheet (.csv)
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Peak-Hours Heatmap */}
-            <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-3">
-              <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                <Flame className="w-3.5 h-3.5 text-amber-500" />
-                Peak-Hours Heatmap (Weekday Login Volume)
-              </h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-center text-xs">
-                  <thead>
-                    <tr>
-                      <th className="p-2 text-left text-slate-400 text-[10px]">Day</th>
-                      {heatmapSlots.map(s => (
-                        <th key={s.label} className="p-2 text-slate-500 text-[10px] font-medium">{s.label}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-mono">
-                    {heatmapDays.map((d, di) => (
-                      <tr key={d}>
-                        <td className="p-2 text-left font-sans font-bold text-slate-700 text-xs">{d}</td>
-                        {heatmapSlots.map((_, si) => {
-                          const val = heatmapMatrix[di][si];
-                          const ratio = val / maxHeatVal;
-                          const bgStyle =
-                            val === 0
-                              ? 'bg-slate-50 text-slate-400'
-                              : ratio > 0.66
-                              ? 'bg-blue-600 text-white font-bold'
-                              : ratio > 0.33
-                              ? 'bg-blue-300 text-slate-900 font-semibold'
-                              : 'bg-blue-100 text-blue-800';
+            {/* Export preparation banner */}
+            {exportNotice && (
+              <div className="mt-3 p-3 bg-blue-50/80 border border-blue-200 rounded-xl flex items-center gap-2.5 text-xs text-blue-800 animate-in fade-in">
+                <Loader2 className="w-4 h-4 animate-spin text-[#1d68ff] shrink-0" />
+                <span>{exportNotice}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Filter Bar */}
+          {currentReport && (
+            <FilterBar
+              report={currentReport}
+              filters={filters}
+              onFilterChange={setFilters}
+              labsList={labsList}
+              systemsList={systemsList}
+            />
+          )}
+
+          {/* Summary KPI Cards */}
+          {reportResult?.summary && reportResult.summary.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3">
+              {reportResult.summary.map((kpi: any) => (
+                <div
+                  key={kpi.id}
+                  className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm relative overflow-hidden"
+                >
+                  <span className="text-[11px] font-semibold text-slate-500 block truncate">
+                    {kpi.label}
+                  </span>
+                  <div className="flex items-baseline gap-1.5 mt-1.5">
+                    <span
+                      className="text-2xl font-black tracking-tight"
+                      style={{ color: kpi.color || '#1e293b' }}
+                    >
+                      {typeof kpi.value === 'number' ? kpi.value.toLocaleString() : kpi.value}
+                    </span>
+                    {kpi.unit && (
+                      <span className="text-xs font-bold text-slate-400">{kpi.unit}</span>
+                    )}
+                  </div>
+                  <div
+                    className="absolute -right-3 -bottom-3 w-14 h-14 rounded-full opacity-10 pointer-events-none"
+                    style={{ backgroundColor: kpi.color || '#1d68ff' }}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Report Chart (if defined) */}
+          {reportResult?.charts && reportResult.charts.length > 0 && (
+            <div className="space-y-4">
+              {reportResult.charts.map((chart: any) => (
+                <ReportChart key={chart.id} chart={chart} />
+              ))}
+            </div>
+          )}
+
+          {/* Main Data Table Card */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
+            {/* Loading / Error / Empty States */}
+            {isReportLoading ? (
+              <div className="p-16 flex flex-col items-center justify-center gap-3">
+                <Loader2 className="w-8 h-8 text-[#1d68ff] animate-spin" />
+                <p className="text-xs font-semibold text-slate-500">Querying institutional records...</p>
+              </div>
+            ) : isReportError ? (
+              <div className="p-12 text-center">
+                <AlertCircle className="w-10 h-10 text-red-500 mx-auto mb-3" />
+                <h4 className="text-sm font-bold text-slate-800">Report Query Failed</h4>
+                <p className="text-xs text-slate-500 mt-1 mb-4 max-w-md mx-auto">
+                  {(reportError as any)?.response?.data?.error || (reportError as any)?.message || 'Internal server error'}
+                </p>
+                <button
+                  onClick={() => refetch()}
+                  className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-colors"
+                >
+                  Retry Request
+                </button>
+              </div>
+            ) : !reportResult?.rows || reportResult.rows.length === 0 ? (
+              <div className="p-16 text-center">
+                <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+                  <HelpCircle className="w-6 h-6" />
+                </div>
+                <h4 className="text-sm font-bold text-slate-800">No Data Found</h4>
+                <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                  No records match the current filter parameters. Try widening your date range or clearing lab/user filters.
+                </p>
+              </div>
+            ) : (
+              <div>
+                {/* Scrollable Table View */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-[#1d68ff] text-white">
+                        {activeColumnsList.map((col: any) => {
+                          const activeSort = sort.find(s => s.key === col.key);
+                          const isRight =
+                            col.type === 'number' ||
+                            col.type === 'percent' ||
+                            col.type === 'duration' ||
+                            col.type === 'size';
 
                           return (
-                            <td key={si} className="p-1.5">
-                              <div className={`p-2 rounded-lg text-xs transition ${bgStyle}`}>
-                                {val}
+                            <th
+                              key={col.key}
+                              style={{ width: col.width ? `${col.width}px` : 'auto' }}
+                              onClick={() => col.sortable && handleHeaderSort(col.key)}
+                              className={`py-3 px-4 font-bold tracking-tight select-none border-b border-blue-600/50 ${
+                                col.sortable ? 'cursor-pointer hover:bg-blue-600/80 transition-colors' : ''
+                              } ${isRight ? 'text-right' : 'text-left'}`}
+                            >
+                              <div
+                                className={`flex items-center gap-1.5 ${
+                                  isRight ? 'justify-end' : 'justify-start'
+                                }`}
+                              >
+                                <span>{col.label}</span>
+                                {col.unit && (
+                                  <span className="text-[10px] font-normal opacity-80">
+                                    ({col.unit})
+                                  </span>
+                                )}
+                                {col.sortable && (
+                                  <span className="opacity-80">
+                                    {activeSort?.dir === 'asc' ? (
+                                      <ArrowUp className="w-3 h-3 text-white" />
+                                    ) : activeSort?.dir === 'desc' ? (
+                                      <ArrowDown className="w-3 h-3 text-white" />
+                                    ) : (
+                                      <ArrowUpDown className="w-3 h-3 opacity-40 hover:opacity-100" />
+                                    )}
+                                  </span>
+                                )}
                               </div>
-                            </td>
+                            </th>
                           );
                         })}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {reportResult.rows.map((row: any, rIdx: number) => (
+                        <tr
+                          key={rIdx}
+                          className={`transition-colors hover:bg-blue-50/40 ${
+                            rIdx % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'
+                          }`}
+                        >
+                          {activeColumnsList.map((col: any) => {
+                            let val = row[col.key];
+                            const isRight =
+                              col.type === 'number' ||
+                              col.type === 'percent' ||
+                              col.type === 'duration' ||
+                              col.type === 'size';
 
-          {/* Machine Utilization Ranking */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm space-y-2">
-              <span className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
-                <Flame className="w-4 h-4 text-emerald-600" />
-                <span>Most Utilized Desktops</span>
-              </span>
-              <div className="space-y-1.5">
-                {mostUsedMachines.map(m => (
-                  <div key={m.node_id} className="flex items-center justify-between text-xs p-2 rounded-lg bg-slate-50">
-                    <span className="font-semibold text-slate-800">{m.hostname}</span>
-                    <span className="font-mono text-blue-600 font-bold">{nodeSessionCounts[m.node_id] || 0} sessions</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+                            let display = val !== undefined && val !== null ? String(val) : '-';
+                            let cellColorClass = 'text-slate-700';
 
-            <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm space-y-2">
-              <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-slate-400" />
-                <span>Least Utilized Desktops</span>
-              </span>
-              <div className="space-y-1.5">
-                {leastUsedMachines.map(m => (
-                  <div key={m.node_id} className="flex items-center justify-between text-xs p-2 rounded-lg bg-slate-50">
-                    <span className="font-semibold text-slate-700">{m.hostname}</span>
-                    <span className="font-mono text-slate-500 font-bold">{nodeSessionCounts[m.node_id] || 0} sessions</span>
+                            if (col.type === 'percent' && typeof val === 'number') {
+                              display = `${val.toFixed(1)}%`;
+                              if (val > 75) cellColorClass = 'text-red-600 font-bold';
+                              else if (val >= 25) cellColorClass = 'text-emerald-600 font-semibold';
+                              else cellColorClass = 'text-amber-600 font-semibold';
+                            } else if (col.type === 'datetime' && val) {
+                              try {
+                                const d = new Date(val);
+                                display = !isNaN(d.getTime()) ? d.toLocaleString() : String(val);
+                              } catch {}
+                            } else if (col.type === 'number' && typeof val === 'number') {
+                              display = val.toLocaleString();
+                            } else if (col.key === 'severity') {
+                              if (val === 'CRITICAL') cellColorClass = 'text-red-600 font-bold';
+                              else if (val === 'WARNING') cellColorClass = 'text-amber-600 font-semibold';
+                              else cellColorClass = 'text-blue-600';
+                            } else if (col.key === 'statusLabel') {
+                              if (val === 'High Load') cellColorClass = 'text-red-600 font-bold';
+                              else if (val === 'Optimal') cellColorClass = 'text-emerald-600 font-bold';
+                              else cellColorClass = 'text-amber-600 font-bold';
+                            }
+
+                            return (
+                              <td
+                                key={col.key}
+                                className={`py-2.5 px-4 text-xs ${isRight ? 'text-right' : 'text-left'} ${cellColorClass}`}
+                              >
+                                {display}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+
+                    {/* Overall Totals Row for the whole filtered set */}
+                    {reportResult.totals && Object.keys(reportResult.totals).length > 0 && (
+                      <tfoot>
+                        <tr className="bg-slate-100/90 font-bold border-t-2 border-slate-300">
+                          {activeColumnsList.map((col: any, cIdx: number) => {
+                            const isRight =
+                              col.type === 'number' ||
+                              col.type === 'percent' ||
+                              col.type === 'duration' ||
+                              col.type === 'size';
+                            let totalVal = reportResult.totals[col.key];
+                            if (col.type === 'percent' && typeof totalVal === 'number') {
+                              totalVal = `${totalVal.toFixed(1)}%`;
+                            } else if (typeof totalVal === 'number') {
+                              totalVal = totalVal.toLocaleString();
+                            }
+
+                            return (
+                              <td
+                                key={col.key}
+                                className={`py-3 px-4 text-xs text-slate-900 ${
+                                  isRight ? 'text-right' : 'text-left'
+                                }`}
+                              >
+                                {totalVal !== undefined && totalVal !== ''
+                                  ? totalVal
+                                  : cIdx === 0
+                                  ? 'Total / Average'
+                                  : ''}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
+
+                {/* Pagination Controls */}
+                <div className="p-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-slate-500">
+                      Showing{' '}
+                      <span className="font-bold text-slate-800">
+                        {Math.min(reportResult.total, (page - 1) * pageSize + 1)}
+                      </span>{' '}
+                      to{' '}
+                      <span className="font-bold text-slate-800">
+                        {Math.min(reportResult.total, page * pageSize)}
+                      </span>{' '}
+                      of{' '}
+                      <span className="font-bold text-slate-800">
+                        {reportResult.total.toLocaleString()}
+                      </span>{' '}
+                      records
+                    </span>
+
+                    <div className="flex items-center gap-1.5 text-xs text-slate-500 border-l border-slate-200 pl-3">
+                      <span>Rows per page:</span>
+                      <select
+                        value={pageSize}
+                        onChange={e => {
+                          setPageSize(Number(e.target.value));
+                          setPage(1);
+                        }}
+                        className="bg-white border border-slate-200 rounded-lg px-2 py-0.5 text-xs font-medium text-slate-700 cursor-pointer"
+                      >
+                        <option value={25}>25</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                      </select>
+                    </div>
                   </div>
-                ))}
+
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page <= 1}
+                      className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-40 transition-colors flex items-center gap-1"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                      Previous
+                    </button>
+
+                    <span className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-[#1d68ff]">
+                      Page {page} of {Math.max(1, Math.ceil(reportResult.total / pageSize))}
+                    </span>
+
+                    <button
+                      onClick={() =>
+                        setPage(p =>
+                          p < Math.ceil(reportResult.total / pageSize) ? p + 1 : p
+                        )
+                      }
+                      disabled={page >= Math.ceil(reportResult.total / pageSize)}
+                      className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-40 transition-colors flex items-center gap-1"
+                    >
+                      Next
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
+      </div>
+
+      {/* Column Chooser Modal */}
+      {currentReport && (
+        <ColumnChooserModal
+          isOpen={isColumnModalOpen}
+          onClose={() => setIsColumnModalOpen(false)}
+          allColumns={currentReport.columns || []}
+          visibleColumns={visibleColumns}
+          onApply={setVisibleColumns}
+        />
       )}
 
-      {!selectedNodeId ? (
-        /* Workstation Selection Grid */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredNodes.map((node: NodeInfo) => {
-            const isSSH = !!node.is_ssh_agentless;
-            const nodeReports = reports.filter(r => r.node_id === node.node_id);
-            const labObj = labs.find(l => l.id === node.labId);
+      {/* Multi-Sort Modal */}
+      {currentReport && (
+        <MultiSortModal
+          isOpen={isSortModalOpen}
+          onClose={() => setIsSortModalOpen(false)}
+          sortableColumns={currentReport.columns?.filter((c: any) => c.sortable) || []}
+          currentSort={sort}
+          onApply={setSort}
+        />
+      )}
 
-            return (
-              <div
-                key={node.node_id}
-                onClick={() => setSelectedNodeId(node.node_id)}
-                className="p-5 rounded-2xl bg-white border border-slate-200/80 hover:border-blue-300 hover:shadow-md transition-all shadow-[0_2px_12px_rgba(0,0,0,0.03)] cursor-pointer flex flex-col justify-between gap-4"
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          isSSH ? 'bg-sky-100 text-sky-700' : 'bg-emerald-100 text-emerald-700'
-                        }`}
-                      >
-                        {isSSH ? 'SSH NODE' : 'LOCAL HOST'}
-                      </span>
-                      {labObj && (
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-blue-600 border border-blue-100 truncate max-w-[130px]">
-                          {labObj.name}
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-xs text-blue-600 font-semibold">
-                      {nodeReports.length} Reports →
-                    </span>
-                  </div>
-
-                  <h3 className="text-base font-bold text-slate-900 mt-2">{node.hostname}</h3>
-                  <p className="text-xs text-slate-500 font-mono mt-0.5">{node.ip}</p>
-                </div>
-
-                <div className="pt-3 border-t border-slate-100 grid grid-cols-3 gap-2 text-xs font-mono">
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">CURRENT CPU</span>
-                    <span className="font-bold text-slate-800">{node.cpu_percent?.toFixed(1) || '0.0'}%</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">CURRENT GPU</span>
-                    <span className="font-bold text-sky-600">{node.gpu_percent?.toFixed(1) || '0.0'}%</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">CURRENT RAM</span>
-                    <span className="font-bold text-slate-800">{node.ram_percent?.toFixed(1) || '0.0'}%</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        /* Detailed Reports Inspector */
-        <div className="space-y-4">
-          <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">
-                Daily Performance History for {selectedNode?.hostname || selectedNodeId}
-              </h3>
-              <p className="text-xs text-slate-500 font-mono mt-0.5">
-                Archived daily telemetry snapshots
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs font-mono">
-                <thead className="bg-slate-50/70 border-b border-slate-100 text-slate-400 font-semibold text-[11px]">
-                  <tr>
-                    <th className="p-4">Report Date</th>
-                    <th className="p-4">Average CPU</th>
-                    <th className="p-4">Peak CPU</th>
-                    <th className="p-4">Average GPU</th>
-                    <th className="p-4">Peak GPU</th>
-                    <th className="p-4">Average RAM</th>
-                    <th className="p-4">Peak RAM</th>
-                    <th className="p-4">Uptime %</th>
-                    <th className="p-4 text-right">Samples</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {filteredReports.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="p-12 text-center text-slate-400 font-sans">
-                        No historical daily reports generated for this workstation yet.
-                        Click "Generate Daily Report" above.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredReports.map((r, i) => (
-                      <tr key={i} className="hover:bg-slate-50/60 transition">
-                        <td className="p-4 font-bold text-slate-900 flex items-center gap-2">
-                          <Calendar className="w-3.5 h-3.5 text-blue-600" />
-                          <span>{r.report_date}</span>
-                        </td>
-                        <td className="p-4 font-semibold text-slate-800">{r.avg_cpu?.toFixed(1)}%</td>
-                        <td className="p-4 font-semibold text-rose-600">{r.max_cpu?.toFixed(1)}%</td>
-                        <td className="p-4 font-semibold text-sky-600">{(r.avg_gpu ?? 0).toFixed(1)}%</td>
-                        <td className="p-4 font-semibold text-purple-600">{(r.max_gpu ?? 0).toFixed(1)}%</td>
-                        <td className="p-4 font-semibold text-slate-800">{r.avg_ram?.toFixed(1)}%</td>
-                        <td className="p-4 font-semibold text-amber-600">{r.max_ram?.toFixed(1)}%</td>
-                        <td className="p-4">
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">
-                            {r.uptime_percent?.toFixed(1) || '100.0'}%
-                          </span>
-                        </td>
-                        <td className="p-4 text-right text-slate-500">{r.samples_count || 120}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+      {/* Save Preset Modal */}
+      {currentReport && (
+        <SavePresetModal
+          isOpen={isPresetModalOpen}
+          onClose={() => setIsPresetModalOpen(false)}
+          reportTitle={currentReport.title}
+          isAdmin={user?.role === 'admin'}
+          onSave={handleSavePreset}
+        />
       )}
     </div>
   );

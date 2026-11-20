@@ -4,6 +4,8 @@ import {
   Shield,
   LayoutDashboard,
   Building2,
+  FileSpreadsheet,
+  BarChart3,
   LogOut
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -13,6 +15,8 @@ import { useAuthStore } from '../../store/useAuthStore';
 const navItems: Array<{ name: string; path: string; icon: any }> = [
   { name: 'Dashboard', path: '/', icon: LayoutDashboard },
   { name: 'Computer Labs', path: '/labs', icon: Building2 },
+  { name: 'Reports', path: '/reports', icon: FileSpreadsheet },
+  { name: 'Daily Reports', path: '/daily-reports', icon: BarChart3 }
 ];
 
 export const Sidebar: React.FC = () => {
