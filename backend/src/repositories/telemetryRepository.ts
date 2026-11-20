@@ -49,6 +49,20 @@ export class TelemetryRepository {
     return 0;
   }
 
+  async deleteHistoryForNode(node_id: string): Promise<boolean> {
+    for (let i = memoryTelemetry.length - 1; i >= 0; i--) {
+      if (memoryTelemetry[i].node_id === node_id) {
+        memoryTelemetry.splice(i, 1);
+      }
+    }
+    if (isDatabaseConnected()) {
+      try {
+        await Telemetry.deleteMany({ node_id });
+      } catch {}
+    }
+    return true;
+  }
+
   async count(): Promise<number> {
     if (isDatabaseConnected()) {
       try {

@@ -434,7 +434,7 @@ labsRouter.get('/labs', async (req: Request, res: Response) => {
     }
 
     for (const n of nodes) {
-      const isOnline = (nowSec - (n.last_seen || 0)) <= 15.0;
+      const isOnline = (n.is_ssh_agentless || n.is_manual) ? (n.status === 'ONLINE') : ((nowSec - (n.last_seen || 0)) <= 15.0);
       const hasUser = Boolean(n.currentUser);
 
       if (!n.labId || !labStats[n.labId]) {
@@ -566,7 +566,7 @@ labsRouter.get('/labs/:id/overview', async (req: Request, res: Response) => {
   const machines = await Promise.all(labNodes.map(async (n: any) => {
     const rawObj = n.toObject ? n.toObject() : n;
     const secondsSinceSeen = Math.round((nowSec - (n.last_seen || 0)) * 10) / 10;
-    const isOnline = n.is_ssh_agentless ? (n.status === 'ONLINE') : (secondsSinceSeen <= 15.0);
+    const isOnline = (n.is_ssh_agentless || n.is_manual) ? (n.status === 'ONLINE') : (secondsSinceSeen <= 15.0);
     const snapshot = await processRepository.getLatestSnapshot(n.node_id);
 
     return {
@@ -749,6 +749,14 @@ labsRouter.put('/nodes/:nodeId/seat', async (req: Request, res: Response) => {
   const updated = await deviceRepository.upsert({ node_id: nodeId, seat: seatNum });
   if (io) io.emit('lab:update', { action: 'seat', nodeId, seat: seatNum });
   return res.json({ status: 'ok', node: updated });
+});
+
+// DELETE /api/labs/:labId/nodes/:nodeId - Remove / delete node from a specific lab
+labsRouter.delete('/labs/:labId/nodes/:nodeId', async (req: Request, res: Response) => {
+  const { labId, nodeId } = req.params;
+  await deviceRepository.deleteNode(String(nodeId));
+  if (io) io.emit('lab:update', { action: 'delete-node', labId, nodeId });
+  return res.json({ status: 'ok', message: `Workstation ${nodeId} deleted from lab` });
 });
 
 function parseTimestamp(ts: any): Date {

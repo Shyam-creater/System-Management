@@ -34,6 +34,10 @@ export const fleetApi = {
   getNodes: (): Promise<{ nodes: Record<string, NodeInfo>; summary: FleetSummary }> =>
     api.get('/nodes').then(res => res.data),
   purgeOffline: () => api.post('/nodes/purge_offline').then(res => res.data),
+  deleteNode: (nodeId: string) =>
+    api.delete(`/nodes/${encodeURIComponent(nodeId)}`).then(res => res.data),
+  addNode: (data: any) =>
+    api.post('/nodes/add', data).then(res => res.data),
   getHistory: (nodeId: string, hours = 24) =>
     api.get(`/history?node_id=${encodeURIComponent(nodeId)}&hours=${hours}`).then(res => res.data)
 };
@@ -115,7 +119,11 @@ export const labsApi = {
   assignNodes: (nodeIds: string[], labId: string | null) =>
     api.put('/nodes/assign', { nodeIds, labId }).then(res => res.data),
   setSeat: (nodeId: string, seat: number | null) =>
-    api.put(`/nodes/${encodeURIComponent(nodeId)}/seat`, { seat }).then(res => res.data)
+    api.put(`/nodes/${encodeURIComponent(nodeId)}/seat`, { seat }).then(res => res.data),
+  deleteNode: (nodeId: string) =>
+    api.delete(`/nodes/${encodeURIComponent(nodeId)}`).then(res => res.data),
+  addNode: (data: any) =>
+    api.post('/nodes/add', data).then(res => res.data)
 };
 
 export const sessionsApi = {

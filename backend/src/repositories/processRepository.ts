@@ -33,6 +33,16 @@ export class ProcessRepository {
     }
     return memorySnapshots.get(node_id) || null;
   }
+
+  async deleteSnapshot(node_id: string): Promise<boolean> {
+    memorySnapshots.delete(node_id);
+    if (isDatabaseConnected()) {
+      try {
+        await ProcessSnapshot.deleteOne({ node_id });
+      } catch {}
+    }
+    return true;
+  }
 }
 
 export const processRepository = new ProcessRepository();

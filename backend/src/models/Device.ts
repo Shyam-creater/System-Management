@@ -14,6 +14,7 @@ export interface IDevice extends Document {
   status: 'ONLINE' | 'OFFLINE';
   health: 'HEALTHY' | 'WARNING' | 'CRITICAL' | 'OFFLINE';
   is_ssh_agentless?: boolean;
+  is_manual?: boolean;
   cpu_percent?: number;
   ram_percent?: number;
   ram_used_gb?: number;
@@ -43,6 +44,7 @@ const DeviceSchema = new Schema<IDevice>({
   status: { type: String, enum: ['ONLINE', 'OFFLINE'], default: 'ONLINE' },
   health: { type: String, enum: ['HEALTHY', 'WARNING', 'CRITICAL', 'OFFLINE'], default: 'HEALTHY' },
   is_ssh_agentless: { type: Boolean, default: false },
+  is_manual: { type: Boolean, default: false },
   cpu_percent: { type: Number, default: 0 },
   ram_percent: { type: Number, default: 0 },
   ram_used_gb: { type: Number, default: 0 },

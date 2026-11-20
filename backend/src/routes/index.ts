@@ -19,6 +19,10 @@ router.post('/auth/logout', (req, res) => authController.logout(req, res));
 // Master Status & Fleet
 router.get('/status', (req, res) => nodeController.getStatus(req, res));
 router.get('/nodes', (req, res) => nodeController.getNodes(req, res));
+router.post('/nodes/add', (req, res) => nodeController.addNode(req, res));
+router.delete('/nodes/:id', (req, res) => nodeController.deleteNode(req, res));
+router.post('/nodes/:id/delete', (req, res) => nodeController.deleteNode(req, res));
+router.post('/nodes/delete', (req, res) => nodeController.deleteNode(req, res));
 router.post('/nodes/purge_offline', (req, res) => nodeController.purgeOffline(req, res));
 
 // Agent Telemetry

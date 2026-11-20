@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   GraduationCap,
   Plus,
+  Loader2,
   Users,
   Monitor,
   CheckCircle2,
@@ -97,6 +98,11 @@ export const Labs: React.FC = () => {
   const [selectedSoftwareNodeId, setSelectedSoftwareNodeId] = useState<string | null>(null);
   const [softwareSearchQuery, setSoftwareSearchQuery] = useState('');
   const [softwareCategoryFilter, setSoftwareCategoryFilter] = useState('all');
+
+  // Live Seat Map Filters & Deletion State
+  const [systemSearchQuery, setSystemSearchQuery] = useState('');
+  const [systemStatusFilter, setSystemStatusFilter] = useState<'ALL' | 'ONLINE' | 'IN_USE' | 'OFFLINE'>('ALL');
+  const [nodeToDelete, setNodeToDelete] = useState<LabOverviewMachine | null>(null);
 
   // Modals state
   const [isAddNodeModalOpen, setIsAddNodeModalOpen] = useState(false);
@@ -314,6 +320,24 @@ export const Labs: React.FC = () => {
     }
   });
 
+  const deleteNodeMutation = useMutation({
+    mutationFn: (nodeId: string) => labsApi.deleteNode(nodeId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['labs'] });
+      queryClient.invalidateQueries({ queryKey: ['labOverview', activeLabId] });
+      queryClient.invalidateQueries({ queryKey: ['nodes'] });
+      if (nodeToDelete) {
+        setActionNotice(`Workstation "${nodeToDelete.hostname}" was permanently deleted from the lab.`);
+        setTimeout(() => setActionNotice(null), 4000);
+      }
+      setNodeToDelete(null);
+    },
+    onError: (err: any) => {
+      const errMsg = err.response?.data?.error || err.message || 'Failed to delete workstation';
+      alert(errMsg);
+    }
+  });
+
   const dispatchCommandMutation = useMutation({
     mutationFn: async (data: { type: string; payload?: any }) => {
       if (!activeLabId) throw new Error('No active lab selected');
@@ -414,6 +438,34 @@ export const Labs: React.FC = () => {
   const schedules: ScheduleItem[] = schedulesData?.schedules || [];
 
   const onlineInCurrentLab = machines.filter(m => m.isOnline).length;
+  const inUseInCurrentLab = machines.filter(m => Boolean(m.currentUser)).length;
+  const offlineInCurrentLab = machines.filter(m => !m.isOnline).length;
+  const availableInCurrentLab = machines.filter(m => m.isOnline && !m.currentUser).length;
+
+  // Filtered Machines for Live Seat Map
+  const filteredMachines = machines.filter((m, idx) => {
+    // 1. Status Filter
+    const isOnline = m.isOnline;
+    const hasUser = Boolean(m.currentUser);
+    if (systemStatusFilter === 'ONLINE' && (!isOnline || hasUser)) return false;
+    if (systemStatusFilter === 'IN_USE' && !hasUser) return false;
+    if (systemStatusFilter === 'OFFLINE' && isOnline) return false;
+
+    // 2. Search Query (Hostname, IP, MAC, seat number, currentUser, system_type)
+    if (!systemSearchQuery.trim()) return true;
+    const q = systemSearchQuery.toLowerCase().trim();
+    const seatNum = String(m.seat ?? (idx + 1));
+    return (
+      (m.hostname && m.hostname.toLowerCase().includes(q)) ||
+      (m.ip && m.ip.toLowerCase().includes(q)) ||
+      (m.mac && m.mac.toLowerCase().includes(q)) ||
+      (m.currentUser && m.currentUser.toLowerCase().includes(q)) ||
+      (m.system_type && m.system_type.toLowerCase().includes(q)) ||
+      seatNum === q ||
+      `seat ${seatNum}`.includes(q) ||
+      `seat #${seatNum}`.includes(q)
+    );
+  });
 
   // Reports & Software Calculations for Active Lab
   const allReports: DailyReportItem[] = reportsData?.reports || [];
@@ -752,13 +804,116 @@ export const Labs: React.FC = () => {
             </div>
           </div>
 
-          {/* Seat Map Grid */}
+          {/* Seat Map Search & Status Filter Bar */}
+          <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-wrap items-center justify-between gap-3">
+            {/* Search Input */}
+            <div className="relative flex-1 min-w-[240px] max-w-md">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search system by hostname, IP, MAC, seat #, student..."
+                value={systemSearchQuery}
+                onChange={(e) => setSystemSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-8 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition"
+              />
+              {systemSearchQuery && (
+                <button
+                  onClick={() => setSystemSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-lg"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Status Filter Pills */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                onClick={() => setSystemStatusFilter('ALL')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                  systemStatusFilter === 'ALL'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                <span>All</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                  systemStatusFilter === 'ALL' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {machines.length}
+                </span>
+              </button>
+
+              <button
+                onClick={() => setSystemStatusFilter('ONLINE')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                  systemStatusFilter === 'ONLINE'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                <span>Available</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                  systemStatusFilter === 'ONLINE' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {availableInCurrentLab}
+                </span>
+              </button>
+
+              <button
+                onClick={() => setSystemStatusFilter('IN_USE')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                  systemStatusFilter === 'IN_USE'
+                    ? 'bg-blue-500 text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full bg-blue-300 animate-pulse" />
+                <span>In Use</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                  systemStatusFilter === 'IN_USE' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {inUseInCurrentLab}
+                </span>
+              </button>
+
+              <button
+                onClick={() => setSystemStatusFilter('OFFLINE')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                  systemStatusFilter === 'OFFLINE'
+                    ? 'bg-slate-700 text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full bg-slate-400" />
+                <span>Offline</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                  systemStatusFilter === 'OFFLINE' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {offlineInCurrentLab}
+                </span>
+              </button>
+
+              {/* Add Node Quick Action */}
+              <button
+                onClick={() => setIsAddNodeModalOpen(true)}
+                className="ml-auto flex items-center gap-1.5 text-xs font-bold text-white px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/20 transition active:scale-95 shrink-0"
+                title={`Add workstation node to ${currentLab.name}`}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Node</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Seat Map Grid or Empty State */}
           {machines.length === 0 ? (
             <div className="p-12 text-center rounded-2xl bg-white border border-slate-200/80 shadow-sm">
               <Monitor className="w-12 h-12 text-slate-300 mx-auto mb-3" />
               <h3 className="text-base font-bold text-slate-800">No Desktops Assigned to {currentLab.name}</h3>
               <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-                Add a computer directly to this lab via SSH or use "Prefix Bind" to associate computers by hostname.
+                Add a computer directly to this lab via SSH or direct registration, or use "Prefix Bind" to associate computers by hostname.
               </p>
               <div className="mt-4 flex items-center justify-center gap-3">
                 <button
@@ -783,9 +938,26 @@ export const Labs: React.FC = () => {
                 </button>
               </div>
             </div>
+          ) : filteredMachines.length === 0 ? (
+            <div className="p-10 text-center rounded-2xl bg-white border border-slate-200/80 shadow-sm">
+              <Search className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+              <h4 className="text-sm font-bold text-slate-800">No Matching Workstations</h4>
+              <p className="text-xs text-slate-500 mt-1">
+                No computers matched "{systemSearchQuery || systemStatusFilter}" in {currentLab.name}.
+              </p>
+              <button
+                onClick={() => {
+                  setSystemSearchQuery('');
+                  setSystemStatusFilter('ALL');
+                }}
+                className="mt-3 px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition"
+              >
+                Clear Search & Filters
+              </button>
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
-              {machines.map((node, idx) => {
+              {filteredMachines.map((node, idx) => {
                 const hasUser = Boolean(node.currentUser);
                 const isOnline = node.isOnline;
                 const seatNumber = node.seat ?? (idx + 1);
@@ -873,6 +1045,18 @@ export const Labs: React.FC = () => {
                               </div>
                             )}
                           </div>
+
+                          {/* Delete Workstation */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setNodeToDelete(node);
+                            }}
+                            title={`Delete ${node.hostname} permanently`}
+                            className="p-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-500 hover:text-rose-700 transition border border-rose-200/60"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
 
                           {!isOnline ? (
                             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200 flex items-center gap-1">
@@ -1924,6 +2108,67 @@ export const Labs: React.FC = () => {
                 className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20"
               >
                 Save Seat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 10.5 MODAL: CONFIRM SYSTEM DELETE */}
+      {nodeToDelete && currentLab && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Delete Workstation</h3>
+                <p className="text-xs text-slate-500">Permanent removal from fleet & lab records</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-rose-50/60 border border-rose-200/80 rounded-2xl space-y-2 text-xs text-slate-700">
+              <p className="font-semibold text-rose-900">
+                Are you sure you want to permanently delete this system?
+              </p>
+              <div className="font-mono text-[11px] bg-white p-2.5 rounded-xl border border-rose-200 space-y-1">
+                <div><span className="text-slate-400">Host:</span> <strong className="text-slate-900">{nodeToDelete.hostname}</strong></div>
+                <div><span className="text-slate-400">IP:</span> {nodeToDelete.ip}</div>
+                {nodeToDelete.mac && <div><span className="text-slate-400">MAC:</span> {nodeToDelete.mac}</div>}
+                {nodeToDelete.seat && <div><span className="text-slate-400">Seat:</span> #{nodeToDelete.seat}</div>}
+              </div>
+              <p className="text-[11px] text-slate-500">
+                This will delete the node from the fleet, purge its telemetry history, and remove it from {currentLab.name}.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                disabled={deleteNodeMutation.isPending}
+                onClick={() => setNodeToDelete(null)}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deleteNodeMutation.isPending}
+                onClick={() => deleteNodeMutation.mutate(nodeToDelete.node_id)}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md shadow-rose-500/20 transition flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {deleteNodeMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete System</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

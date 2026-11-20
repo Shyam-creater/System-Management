@@ -114,6 +114,16 @@ export class DeviceRepository {
     return purgedCount;
   }
 
+  async deleteNode(node_id: string): Promise<boolean> {
+    memoryDevices.delete(node_id);
+    if (isDatabaseConnected()) {
+      try {
+        await Device.deleteOne({ node_id });
+      } catch {}
+    }
+    return true;
+  }
+
   async count(): Promise<number> {
     if (isDatabaseConnected()) {
       try {

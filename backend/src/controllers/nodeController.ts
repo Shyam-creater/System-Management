@@ -50,6 +50,24 @@ export class NodeController {
     const deletedCount = await deviceService.purgeOfflineNodes();
     return res.json({ status: 'ok', purged_count: deletedCount });
   }
+
+  async deleteNode(req: Request, res: Response) {
+    const nodeId = req.params.id || req.body.node_id;
+    if (!nodeId) {
+      return res.status(400).json({ error: 'Node ID is required' });
+    }
+    await deviceService.deleteNode(String(nodeId));
+    return res.json({ status: 'ok', message: `System ${nodeId} deleted successfully`, node_id: nodeId });
+  }
+
+  async addNode(req: Request, res: Response) {
+    const { hostname, ip } = req.body;
+    if (!ip && !hostname) {
+      return res.status(400).json({ error: 'Hostname or IP address is required' });
+    }
+    const result = await deviceService.addNode(req.body);
+    return res.json({ status: 'ok', message: 'Workstation successfully registered', node: result });
+  }
 }
 
 export const nodeController = new NodeController();
