@@ -58,7 +58,21 @@ app.use('/api', schedulesRouter);
 
 // Serve Static Frontend if built in production
 const frontendDist = path.resolve(__dirname, '../../frontend/dist');
-app.use(express.static(frontendDist));
+app.use(express.static(frontendDist, { index: false }));
+
+// Root route: Redirect to /login if unauthenticated
+app.get('/', (req, res) => {
+  const token = req.cookies?.token;
+  if (!token) {
+    return res.redirect('/login');
+  }
+  const indexPath = path.join(frontendDist, 'index.html');
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      res.redirect('/login');
+    }
+  });
+});
 
 // Fallback for SPA routing
 app.get('*', (req, res, next) => {

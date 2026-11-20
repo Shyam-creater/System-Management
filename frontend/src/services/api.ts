@@ -19,7 +19,10 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('processshield_admin_token');
+  const token =
+    sessionStorage.getItem('processshield_session_token') ||
+    localStorage.getItem('processshield_session_token') ||
+    localStorage.getItem('processshield_admin_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -160,6 +163,8 @@ export const authApi = {
   login: async (username: string, password: string): Promise<{ status: string; token: string; user: any }> => {
     const res = await api.post('/auth/login', { username, password });
     if (res.data.token) {
+      sessionStorage.setItem('processshield_session_token', res.data.token);
+      localStorage.setItem('processshield_session_token', res.data.token);
       localStorage.setItem('processshield_admin_token', res.data.token);
     }
     return res.data;
@@ -167,6 +172,8 @@ export const authApi = {
   getMe: (): Promise<{ authenticated: boolean; user: any }> =>
     api.get('/auth/me').then(res => res.data),
   logout: async () => {
+    sessionStorage.removeItem('processshield_session_token');
+    localStorage.removeItem('processshield_session_token');
     localStorage.removeItem('processshield_admin_token');
     return api.post('/auth/logout').then(res => res.data);
   }

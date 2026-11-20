@@ -18,13 +18,14 @@ interface AuthState {
   clearError: () => void;
 }
 
-const initialToken = localStorage.getItem('processshield_admin_token');
+const currentSessionToken = sessionStorage.getItem('processshield_session_token');
 
 export const useAuthStore = create<AuthState>((set) => ({
-  user: initialToken ? { username: 'admin', role: 'admin' } : null,
-  token: initialToken,
-  isAuthenticated: Boolean(initialToken),
-  isLoading: true,
+  user: null,
+  token: currentSessionToken,
+  // Start unauthenticated so newly opened sessions always land on /login first
+  isAuthenticated: Boolean(currentSessionToken),
+  isLoading: false,
   error: null,
 
   login: async (username: string, password: string) => {
@@ -54,12 +55,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       await authApi.logout();
     } catch {}
+    sessionStorage.clear();
+    localStorage.removeItem('processshield_session_token');
     localStorage.removeItem('processshield_admin_token');
     set({ token: null, user: null, isAuthenticated: false, isLoading: false, error: null });
   },
 
   checkAuth: async () => {
-    const token = localStorage.getItem('processshield_admin_token');
+    const token = sessionStorage.getItem('processshield_session_token');
     if (!token) {
       set({ isAuthenticated: false, user: null, token: null, isLoading: false });
       return false;
@@ -76,11 +79,15 @@ export const useAuthStore = create<AuthState>((set) => ({
         });
         return true;
       } else {
+        sessionStorage.clear();
+        localStorage.removeItem('processshield_session_token');
         localStorage.removeItem('processshield_admin_token');
         set({ user: null, token: null, isAuthenticated: false, isLoading: false });
         return false;
       }
     } catch {
+      sessionStorage.clear();
+      localStorage.removeItem('processshield_session_token');
       localStorage.removeItem('processshield_admin_token');
       set({ user: null, token: null, isAuthenticated: false, isLoading: false });
       return false;
