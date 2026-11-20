@@ -11,6 +11,7 @@ export interface ISoftwarePackage {
   summary: string;
   package_id: string;
   architecture: string;
+  sizeMB?: number;
 }
 
 export interface ISoftwareInventory extends Document {
@@ -31,7 +32,8 @@ const SoftwarePackageSchema = new Schema<ISoftwarePackage>({
   source: { type: String, default: 'System' },
   summary: { type: String, default: '' },
   package_id: { type: String, default: '' },
-  architecture: { type: String, default: 'all' }
+  architecture: { type: String, default: 'all' },
+  sizeMB: { type: Number, default: 0 }
 }, { _id: false });
 
 const SoftwareInventorySchema = new Schema<ISoftwareInventory>({

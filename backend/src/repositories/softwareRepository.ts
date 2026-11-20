@@ -35,6 +35,16 @@ export class SoftwareRepository {
     }
     return memorySoftware.get(node_id) || null;
   }
+
+  async findAll(): Promise<any[]> {
+    if (isDatabaseConnected()) {
+      try {
+        const fromDb = await SoftwareInventory.find().lean();
+        if (fromDb && fromDb.length > 0) return fromDb;
+      } catch {}
+    }
+    return Array.from(memorySoftware.values());
+  }
 }
 
 export const softwareRepository = new SoftwareRepository();

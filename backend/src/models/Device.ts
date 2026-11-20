@@ -7,6 +7,7 @@ export interface IDevice extends Document {
   mac?: string;
   interface?: string;
   system_type?: string;
+  cpu_model?: string;
   is_simulated: boolean;
   first_seen: number;
   last_seen: number;
@@ -35,6 +36,7 @@ const DeviceSchema = new Schema<IDevice>({
   mac: { type: String, default: null },
   interface: { type: String, default: null },
   system_type: { type: String, default: 'Unknown' },
+  cpu_model: { type: String, default: 'Intel Core i7-10700 @ 2.90GHz' },
   is_simulated: { type: Boolean, default: false },
   first_seen: { type: Number, required: true, default: () => Date.now() / 1000 },
   last_seen: { type: Number, required: true, default: () => Date.now() / 1000 },
