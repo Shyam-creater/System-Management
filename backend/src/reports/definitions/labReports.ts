@@ -274,19 +274,20 @@ export const L4_Report: ReportConfig = {
     });
 
     if (rows.length === 0) {
-      const now = new Date();
       for (const dev of allDevices) {
-        const baseUser = dev.hostname?.toLowerCase().includes('iot') ? 'iot_admin' : 'student_lab_user';
+        const loginDate = dev.first_seen ? new Date(dev.first_seen * 1000) : new Date();
+        const durationMin = Math.max(1, Math.round(((Date.now() / 1000) - (dev.first_seen || dev.last_seen || Date.now() / 1000)) / 60));
+        const realUser = dev.currentUser || 'Administrator';
         rows.push({
-          date: now.toISOString().split('T')[0],
+          date: loginDate.toISOString().split('T')[0],
           lab: labMap.get(dev.labId) || 'Computer Science Lab 1',
           system: dev.hostname || dev.node_id,
           seat: dev.seat || 1,
-          user: baseUser,
-          login: new Date(now.getTime() - 45 * 60 * 1000).toISOString(),
-          logout: 'Active',
-          duration: 45,
-          closedBy: 'active'
+          user: realUser,
+          login: loginDate.toISOString(),
+          logout: dev.status === 'ONLINE' ? 'Active' : (dev.last_seen ? new Date(dev.last_seen * 1000).toISOString() : 'Active'),
+          duration: durationMin,
+          closedBy: dev.status === 'ONLINE' ? 'active' : 'agent-offline'
         });
       }
     }
@@ -375,6 +376,14 @@ export const L2_Report: ReportConfig = {
       entry.users.add(s.username);
     }
 
+    const allDevices = await getScopedDevices(labs.map(l => l.id));
+    const devByLab = new Map<string, any[]>();
+    for (const d of allDevices) {
+      const arr = devByLab.get(d.labId) || [];
+      arr.push(d);
+      devByLab.set(d.labId, arr);
+    }
+
     const rows: any[] = [];
     for (const g of groups.values()) {
       const lab = labMap.get(g.labId);
@@ -382,6 +391,9 @@ export const L2_Report: ReportConfig = {
       const capacity = lab?.capacity || 20;
       const capacityHours = capacity * 8 * (groupBy === 'month' ? 30 : groupBy === 'week' ? 7 : 1);
       const occupancyPct = Number(Math.min(100, (hours / capacityHours) * 100).toFixed(1));
+      const labDevs = devByLab.get(g.labId) || [];
+      const avgCpu = labDevs.length > 0 ? Number((labDevs.reduce((a, b) => a + (b.cpu_percent || 0), 0) / labDevs.length).toFixed(1)) : 0;
+      const avgRam = labDevs.length > 0 ? Number((labDevs.reduce((a, b) => a + (b.ram_percent || 0), 0) / labDevs.length).toFixed(1)) : 0;
 
       rows.push({
         period: g.period,
@@ -390,28 +402,32 @@ export const L2_Report: ReportConfig = {
         hours,
         uniqueUsers: g.users.size,
         occupancyPct,
-        avgCpu: Number((25 + Math.random() * 25).toFixed(1)),
-        avgRam: Number((40 + Math.random() * 25).toFixed(1))
+        avgCpu,
+        avgRam
       });
     }
 
     if (rows.length === 0) {
       const now = new Date();
       for (const lab of labs) {
-        for (let i = 0; i < 7; i++) {
-          const d = new Date(now.getTime() - i * 24 * 3600 * 1000);
-          const period = d.toISOString().split('T')[0];
-          rows.push({
-            period,
-            lab: lab.name || 'Computer Science Lab 1',
-            sessions: Math.floor(12 + Math.random() * 8),
-            hours: Number((32 + Math.random() * 14).toFixed(1)),
-            uniqueUsers: Math.floor(10 + Math.random() * 6),
-            occupancyPct: Number((65 + Math.random() * 20).toFixed(1)),
-            avgCpu: Number((22 + Math.random() * 15).toFixed(1)),
-            avgRam: Number((45 + Math.random() * 10).toFixed(1))
-          });
-        }
+        const labId = lab.id || lab._id?.toString();
+        const labDevs = devByLab.get(labId) || [];
+        const count = labDevs.length;
+        const onlineCount = labDevs.filter(d => d.status === 'ONLINE').length;
+        const avgCpu = count > 0 ? Number((labDevs.reduce((a, b) => a + (b.cpu_percent || 0), 0) / count).toFixed(1)) : 0;
+        const avgRam = count > 0 ? Number((labDevs.reduce((a, b) => a + (b.ram_percent || 0), 0) / count).toFixed(1)) : 0;
+        const period = now.toISOString().split('T')[0];
+
+        rows.push({
+          period,
+          lab: lab.name || 'Computer Science Lab 1',
+          sessions: onlineCount,
+          hours: Number((onlineCount * 2.5).toFixed(1)),
+          uniqueUsers: onlineCount,
+          occupancyPct: count > 0 ? Number(((onlineCount / count) * 100).toFixed(1)) : 0,
+          avgCpu,
+          avgRam
+        });
       }
     }
 
@@ -468,6 +484,8 @@ export const L3_Report: ReportConfig = {
   query: async (filters, sort, page, pageSize, columnsToReturn, scope): Promise<QueryResult> => {
     const { startDate, endDate, resolution } = parseDateRange(filters.dateRange);
     const labs = await getScopedLabs(scope, filters.labs);
+    const labMap = new Map<string, string>();
+    labs.forEach(l => labMap.set(l.id || l._id?.toString(), l.name));
     const labIds = labs.map(l => l.id);
     const totalCapacity = labs.reduce((acc, l) => acc + (l.capacity || 20), 0);
 
@@ -688,6 +706,8 @@ export const L7_Report: ReportConfig = {
   query: async (filters, sort, page, pageSize, columnsToReturn, scope): Promise<QueryResult> => {
     const { startDate, endDate, resolution } = parseDateRange(filters.dateRange);
     const labs = await getScopedLabs(scope, filters.labs);
+    const labMap = new Map<string, string>();
+    labs.forEach(l => labMap.set(l.id || l._id?.toString(), l.name));
     const labIds = labs.map(l => l.id);
     const alerts = await alertRepository.findRecent(undefined, 5000);
 
@@ -714,15 +734,19 @@ export const L7_Report: ReportConfig = {
     });
 
     if (rows.length === 0) {
-      const now = new Date();
-      for (const l of labs) {
+      const allDevices = await getScopedDevices(labs.map(l => l.id));
+      for (const dev of allDevices) {
+        const time = dev.last_seen ? new Date(dev.last_seen * 1000) : new Date();
+        const isHealthy = dev.health === 'HEALTHY' || !dev.health;
         rows.push({
-          time: new Date(now.getTime() - 25 * 60 * 1000),
-          lab: l.name,
-          system: 'SJT515-IOT03',
-          severity: 'INFO',
-          rule: 'Telemetry Polling',
-          message: 'Workstation SJT515-IOT03 connected and streaming metrics',
+          time,
+          lab: labMap.get(dev.labId) || 'Computer Science Lab 1',
+          system: dev.hostname || dev.node_id,
+          severity: isHealthy ? 'INFO' : dev.health,
+          rule: isHealthy ? 'System Health Normal' : 'Resource Tripwire',
+          message: isHealthy
+            ? `System ${dev.hostname || dev.node_id} operating nominally (CPU ${dev.cpu_percent || 0}%, RAM ${dev.ram_percent || 0}%, GPU ${dev.gpu_percent || 0}%)`
+            : `Elevated threshold detected on ${dev.hostname || dev.node_id} (CPU ${dev.cpu_percent}%, RAM ${dev.ram_percent}%)`,
           acknowledged: 'Yes'
         });
       }

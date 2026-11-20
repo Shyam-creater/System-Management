@@ -23,11 +23,11 @@ export const ReportCatalog: React.FC<ReportCatalogProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
 
-  const categories = [
-    { id: 'all', label: 'All', icon: Layers },
-    { id: 'lab', label: 'Labs', icon: Building },
-    { id: 'system', label: 'Systems', icon: Monitor }
-  ];
+  const categories = useMemo(() => [
+    { id: 'all', label: `All (${catalog.length})`, icon: Layers },
+    { id: 'lab', label: `Labs (${catalog.filter(r => r.category === 'lab').length})`, icon: Building },
+    { id: 'system', label: `Systems (${catalog.filter(r => r.category === 'system').length})`, icon: Monitor }
+  ], [catalog]);
 
   const filteredCatalog = useMemo(() => {
     return catalog.filter(report => {

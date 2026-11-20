@@ -221,39 +221,66 @@ export const C2_Report: ReportConfig = {
   id: 'C2',
   title: 'Lab Comparison',
   category: 'lab',
-  description: 'Side-by-side comparative benchmarking across selected campus computer laboratories.',
+  description: 'Side-by-side comparative benchmarking across operational laboratories.',
   filters: ['dateRange', 'lab'],
   columns: [
-    { key: 'metric', label: 'Benchmark Metric', type: 'text', sortable: false, defaultVisible: true, width: 220 },
-    { key: 'lab1', label: 'CS Lab 1', type: 'text', sortable: false, defaultVisible: true, width: 140 },
-    { key: 'lab2', label: 'AI Lab 2', type: 'text', sortable: false, defaultVisible: true, width: 140 },
-    { key: 'lab3', label: 'Cyber Lab 3', type: 'text', sortable: false, defaultVisible: true, width: 140 },
-    { key: 'lab4', label: 'IoT Lab 4', type: 'text', sortable: false, defaultVisible: true, width: 140 },
-    { key: 'lab5', label: 'Cloud Lab 5', type: 'text', sortable: false, defaultVisible: true, width: 140 }
+    { key: 'lab', label: 'Laboratory Name', type: 'text', sortable: true, defaultVisible: true, width: 220 },
+    { key: 'systemsCount', label: 'Workstations', type: 'number', sortable: true, defaultVisible: true, total: 'sum', width: 120 },
+    { key: 'onlineSystems', label: 'Online Systems', type: 'number', sortable: true, defaultVisible: true, total: 'sum', width: 130 },
+    { key: 'avgCpu', label: 'Avg CPU %', type: 'percent', unit: '%', sortable: true, defaultVisible: true, total: 'avg', width: 110 },
+    { key: 'avgRam', label: 'Avg RAM %', type: 'percent', unit: '%', sortable: true, defaultVisible: true, total: 'avg', width: 110 },
+    { key: 'avgDisk', label: 'Avg Disk %', type: 'percent', unit: '%', sortable: true, defaultVisible: true, total: 'avg', width: 110 },
+    { key: 'avgGpu', label: 'Avg GPU %', type: 'percent', unit: '%', sortable: true, defaultVisible: true, total: 'avg', width: 110 },
+    { key: 'totalRamGB', label: 'Total RAM (GB)', type: 'number', unit: 'GB', sortable: true, defaultVisible: true, total: 'sum', width: 130 },
+    { key: 'totalProcesses', label: 'Active Processes', type: 'number', sortable: true, defaultVisible: true, total: 'sum', width: 140 },
+    { key: 'status', label: 'Operational Status', type: 'text', sortable: true, defaultVisible: true, width: 140 }
   ],
-  defaultSort: [],
+  defaultSort: [{ key: 'systemsCount', dir: 'desc' }],
   query: async (filters, sort, page, pageSize, columnsToReturn, scope): Promise<QueryResult> => {
     const { startDate, endDate, resolution } = parseDateRange(filters.dateRange);
     const labs = await getScopedLabs(scope, filters.labs);
+    const allDevices = await getScopedDevices(labs.map(l => l.id));
 
-    const rows = [
-      { metric: 'Capacity (Workstations)', lab1: '20', lab2: '20', lab3: '20', lab4: '20', lab5: '20' },
-      { metric: 'Operational Occupancy %', lab1: '68.4%', lab2: '74.2%', lab3: '55.1%', lab4: '61.8%', lab5: '71.5%' },
-      { metric: 'Peak Concurrency %', lab1: '85.0%', lab2: '92.0%', lab3: '70.0%', lab4: '75.0%', lab5: '88.0%' },
-      { metric: 'Fleet Availability %', lab1: '100%', lab2: '100%', lab3: '95.0%', lab4: '100%', lab5: '100%' },
-      { metric: 'Active Hardware Architecture', lab1: 'Intel Core i7', lab2: 'AMD Ryzen 7 + RTX', lab3: 'Intel Core i7', lab4: 'AMD Ryzen 7', lab5: 'Intel Xeon' },
-      { metric: 'Total Policy Violations', lab1: '8', lab2: '14', lab3: '11', lab4: '5', lab5: '7' }
-    ];
+    const rows = labs.map(lab => {
+      const labId = lab.id || lab._id?.toString();
+      const labDevs = allDevices.filter(d => d.labId === labId);
+      const count = labDevs.length;
+      const online = labDevs.filter(d => d.status === 'ONLINE').length;
+      const avgCpu = count > 0 ? Number((labDevs.reduce((a, b) => a + (b.cpu_percent || 0), 0) / count).toFixed(1)) : 0;
+      const avgRam = count > 0 ? Number((labDevs.reduce((a, b) => a + (b.ram_percent || 0), 0) / count).toFixed(1)) : 0;
+      const avgDisk = count > 0 ? Number((labDevs.reduce((a, b) => a + (b.disk_percent || 0), 0) / count).toFixed(1)) : 0;
+      const avgGpu = count > 0 ? Number((labDevs.reduce((a, b) => a + (b.gpu_percent || 0), 0) / count).toFixed(1)) : 0;
+      const totalRam = labDevs.reduce((a, b) => a + (b.ram_total_gb || 0), 0);
+      const totalProcs = labDevs.reduce((a, b) => a + (b.process_count || 0), 0);
+
+      return {
+        lab: lab.name || labId,
+        systemsCount: count,
+        onlineSystems: online,
+        avgCpu,
+        avgRam,
+        avgDisk,
+        avgGpu,
+        totalRamGB: totalRam,
+        totalProcesses: totalProcs,
+        status: online > 0 ? 'Active / Online' : 'Standby'
+      };
+    });
+
+    const totals = computeTotals(rows, C2_Report.columns);
+    const sortedRows = applyMultiSort(rows, sort.length > 0 ? sort : C2_Report.defaultSort);
+    const pagedRows = paginateRows(sortedRows, page, pageSize);
 
     const summary: KPIItem[] = [
-      { id: 'highest_density', label: 'Highest Density Lab', value: 'AI Lab 2', unit: '', color: '#10b981' }
+      { id: 'total_labs', label: 'Compared Laboratories', value: rows.length, unit: '', color: '#1d68ff' },
+      { id: 'fleet_workstations', label: 'Total Lab Workstations', value: rows.reduce((a, b) => a + b.systemsCount, 0), unit: '', color: '#10b981' }
     ];
 
     return {
       columns: C2_Report.columns,
-      rows,
+      rows: pagedRows,
       total: rows.length,
-      totals: {},
+      totals,
       summary,
       charts: [],
       resolution

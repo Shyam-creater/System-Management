@@ -29,12 +29,16 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-ProcessShield-Key', 'X-Agent-Token']
 }));
 
-// Rate Limiting (Relaxed for 5-second agent polling)
+// Rate Limiting (Relaxed for multi-tab agent and dashboard polling)
 const limiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 1200, // 20 requests per second per IP
+  max: 100000,
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  skip: (req) => {
+    const ip = req.ip || req.socket.remoteAddress || '';
+    return ip.includes('127.0.0.1') || ip.includes('::1') || ip.includes('10.30.151');
+  }
 });
 app.use(limiter);
 

@@ -2,9 +2,7 @@ import { ReportConfig, UserScope, QueryResult, SortLevel, ReportFilterValues } f
 import {
   L2_Report,
   L4_Report,
-  L7_Report,
-  L8_Report,
-  L10_Report
+  L7_Report
 } from './definitions/labReports.js';
 import {
   S1_Report,
@@ -22,7 +20,7 @@ class ReportRegistry {
   private reports = new Map<string, ReportConfig>();
 
   constructor() {
-    // 12 Curated Reports Only:
+    // 10 Curated Reports Only:
     // 1. Processes
     this.register(S6_Report);
 
@@ -41,22 +39,16 @@ class ReportRegistry {
     // 6. Alerts
     this.register(L7_Report);
 
-    // 7. Software Compliance
-    this.register(L8_Report);
-
-    // 8. Class-hour Utilization
-    this.register(L10_Report);
-
-    // 9. System Utilization
+    // 7. System Utilization
     this.register(S1_Report);
 
-    // 10. Memory Usage
+    // 8. Memory Usage
     this.register(S3_Report);
 
-    // 11. Hardware Inventory
+    // 9. Hardware Inventory
     this.register(S7_Report);
 
-    // 12. Lab Comparison
+    // 10. Lab Comparison
     this.register(C2_Report);
   }
 
