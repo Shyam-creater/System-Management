@@ -15,25 +15,28 @@ import { SoftwareInventory } from '../pages/SoftwareInventory';
 import { SimulatorPage } from '../pages/SimulatorPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { Labs } from '../pages/Labs';
+import { Login } from '../pages/Login';
+import { ProtectedRoute } from '../components/auth/ProtectedRoute';
 
 export const AppRouter: React.FC = () => {
   return (
     <Routes>
-      <Route path="/" element={<Dashboard />} />
-      <Route path="/labs" element={<Labs />} />
-      <Route path="/devices" element={<Devices />} />
-      <Route path="/processes" element={<Processes />} />
-      <Route path="/cpu-analyzer" element={<CPUAnalyzer />} />
-      <Route path="/memory-analyzer" element={<MemoryAnalyzer />} />
-      <Route path="/controller" element={<ProcessController />} />
-      <Route path="/deadlock" element={<Deadlock />} />
-      <Route path="/bankers" element={<BankersAlgorithm />} />
-      <Route path="/alerts" element={<Alerts />} />
-      <Route path="/logs" element={<LogsPage />} />
-      <Route path="/reports" element={<Reports />} />
-      <Route path="/software" element={<SoftwareInventory />} />
-      <Route path="/simulator" element={<SimulatorPage />} />
-      <Route path="/settings" element={<SettingsPage />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/labs" element={<ProtectedRoute><Labs /></ProtectedRoute>} />
+      <Route path="/devices" element={<ProtectedRoute><Devices /></ProtectedRoute>} />
+      <Route path="/processes" element={<ProtectedRoute><Processes /></ProtectedRoute>} />
+      <Route path="/cpu-analyzer" element={<ProtectedRoute><CPUAnalyzer /></ProtectedRoute>} />
+      <Route path="/memory-analyzer" element={<ProtectedRoute><MemoryAnalyzer /></ProtectedRoute>} />
+      <Route path="/controller" element={<ProtectedRoute><ProcessController /></ProtectedRoute>} />
+      <Route path="/deadlock" element={<ProtectedRoute><Deadlock /></ProtectedRoute>} />
+      <Route path="/bankers" element={<ProtectedRoute><BankersAlgorithm /></ProtectedRoute>} />
+      <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
+      <Route path="/logs" element={<ProtectedRoute><LogsPage /></ProtectedRoute>} />
+      <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+      <Route path="/software" element={<ProtectedRoute><SoftwareInventory /></ProtectedRoute>} />
+      <Route path="/simulator" element={<ProtectedRoute><SimulatorPage /></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

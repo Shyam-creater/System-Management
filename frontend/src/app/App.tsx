@@ -1,12 +1,20 @@
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import { Navbar } from '../components/layout/Navbar';
 import { Sidebar } from '../components/layout/Sidebar';
 import { AppRouter } from './router';
 import { useSocket } from '../hooks/useSocket';
 
 export const App: React.FC = () => {
+  const location = useLocation();
+  const isLoginPage = location.pathname === '/login';
+
   // Connect real-time socket
   useSocket();
+
+  if (isLoginPage) {
+    return <AppRouter />;
+  }
 
   return (
     <div className="flex min-h-screen bg-[#f0f4f9] text-slate-800 antialiased selection:bg-[#1d68ff] selection:text-white">

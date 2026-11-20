@@ -144,15 +144,6 @@ export const Labs: React.FC = () => {
   const [sessionUserSearch, setSessionUserSearch] = useState('');
   const [sessionActiveOnly, setSessionActiveOnly] = useState(false);
 
-  // Ensure Admin Auth on Mount
-  useEffect(() => {
-    authApi.getMe().then(res => {
-      if (!res.authenticated) {
-        authApi.login('admin', 'admin123').catch(() => {});
-      }
-    });
-  }, []);
-
   // 1. Queries
   const { data: labsData, isLoading: isLabsLoading } = useQuery({
     queryKey: ['labs'],

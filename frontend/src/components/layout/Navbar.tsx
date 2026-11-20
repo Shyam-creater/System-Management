@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { Search, Bell, User, ChevronDown, Database } from 'lucide-react';
+import { Search, Bell, User, ChevronDown, Database, LogOut } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { fleetApi, alertsApi } from '../../services/api';
 import { useFleetStore } from '../../store/useFleetStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
 
 export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const { searchFilter, setSearchFilter } = useFleetStore();
+  const { user, logout } = useAuthStore();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   const { data: statusData } = useQuery({
@@ -82,15 +84,15 @@ export const Navbar: React.FC = () => {
               <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-blue-500 text-white flex items-center justify-center shadow-sm">
                 <User className="w-4 h-4 text-white" />
               </div>
-              <span className="text-xs font-semibold text-slate-800 hidden sm:inline-block">Admin</span>
+              <span className="text-xs font-semibold text-slate-800 hidden sm:inline-block capitalize">{user?.username || 'Admin'}</span>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
             </button>
 
             {showProfileMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50 text-xs">
+              <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50 text-xs animate-fadeIn">
                 <div className="px-4 py-2 border-b border-slate-100">
-                  <p className="font-bold text-slate-800">System Administrator</p>
-                  <p className="text-[11px] text-slate-400">{statusData?.hostname || 'localhost'}</p>
+                  <p className="font-bold text-slate-800 capitalize">{user?.username || 'Admin'}</p>
+                  <p className="text-[11px] text-slate-400 font-medium">Role: {user?.role || 'System Admin'}</p>
                 </div>
                 <button
                   onClick={() => { setShowProfileMenu(false); navigate('/settings'); }}
@@ -104,6 +106,19 @@ export const Navbar: React.FC = () => {
                 >
                   Computer Labs Hub
                 </button>
+                <div className="pt-1 mt-1 border-t border-slate-100">
+                  <button
+                    onClick={async () => {
+                      setShowProfileMenu(false);
+                      await logout();
+                      navigate('/login');
+                    }}
+                    className="w-full text-left px-4 py-2 text-rose-600 hover:bg-rose-50 flex items-center gap-2 font-semibold transition"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>

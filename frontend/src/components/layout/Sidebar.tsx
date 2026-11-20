@@ -1,12 +1,14 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Shield,
   LayoutDashboard,
-  Building2
+  Building2,
+  LogOut
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { fleetApi, alertsApi } from '../../services/api';
+import { useAuthStore } from '../../store/useAuthStore';
 
 const navItems: Array<{ name: string; path: string; icon: any }> = [
   { name: 'Dashboard', path: '/', icon: LayoutDashboard },
@@ -14,6 +16,8 @@ const navItems: Array<{ name: string; path: string; icon: any }> = [
 ];
 
 export const Sidebar: React.FC = () => {
+  const navigate = useNavigate();
+  const { user, logout } = useAuthStore();
   const { data: fleetData } = useQuery({
     queryKey: ['nodes'],
     queryFn: fleetApi.getNodes,
@@ -89,19 +93,36 @@ export const Sidebar: React.FC = () => {
         </nav>
       </div>
 
-      {/* Bottom Status Card matching reference image */}
-      <div className="p-3 border-t border-slate-100">
-        <div className="p-3 rounded-2xl bg-slate-50/80 border border-slate-200/80 shadow-sm">
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
-            </span>
-            <span className="text-xs font-bold text-slate-800">System Online</span>
+      {/* Bottom User Card & Status */}
+      <div className="p-3 border-t border-slate-100 space-y-2">
+        <div className="p-2.5 rounded-2xl bg-slate-50/80 border border-slate-200/80 shadow-sm flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
+              {user?.username?.charAt(0).toUpperCase() || 'A'}
+            </div>
+            <div className="truncate">
+              <p className="text-xs font-bold text-slate-800 truncate capitalize">{user?.username || 'Admin'}</p>
+              <p className="text-[10px] text-slate-400 font-medium truncate">System Administrator</p>
+            </div>
           </div>
-          <p className="text-[11px] text-slate-500 mt-1 pl-4.5 font-medium">
-            {summary.online_nodes} Devices • {summary.sim_nodes} Simulator
-          </p>
+          <button
+            onClick={async () => {
+              await logout();
+              navigate('/login');
+            }}
+            title="Sign Out"
+            className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition shrink-0"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="px-2 py-1 flex items-center justify-between text-[11px] text-slate-500 font-medium">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Fleet Online</span>
+          </div>
+          <span>{summary.online_nodes} Workstation{summary.online_nodes === 1 ? '' : 's'}</span>
         </div>
       </div>
     </aside>
