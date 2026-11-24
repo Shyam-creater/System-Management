@@ -374,7 +374,13 @@ export const DailyReports: React.FC = () => {
                   </div>
 
                   <h3 className="text-base font-bold text-slate-900 mt-2">{node.hostname}</h3>
-                  <p className="text-xs text-slate-500 font-mono mt-0.5">{node.ip}</p>
+                  <div className="flex items-center gap-2 text-xs text-slate-500 font-mono mt-0.5">
+                    <span>{node.ip}</span>
+                    <span>•</span>
+                    <span className={node.currentUser ? "font-bold text-indigo-600" : "italic text-slate-400"}>
+                      {node.currentUser || 'No User'}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="pt-3 border-t border-slate-100 grid grid-cols-3 gap-2 text-xs font-mono">
@@ -415,6 +421,7 @@ export const DailyReports: React.FC = () => {
                 <thead className="bg-slate-50/70 border-b border-slate-100 text-slate-400 font-semibold text-[11px]">
                   <tr>
                     <th className="p-4">Report Date</th>
+                    <th className="p-4">Current Login User</th>
                     <th className="p-4">Average CPU</th>
                     <th className="p-4">Peak CPU</th>
                     <th className="p-4">Average GPU</th>
@@ -428,7 +435,7 @@ export const DailyReports: React.FC = () => {
                 <tbody className="divide-y divide-slate-100 text-slate-700">
                   {filteredReports.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="p-12 text-center text-slate-400 font-sans">
+                      <td colSpan={10} className="p-12 text-center text-slate-400 font-sans">
                         No historical daily reports generated for this workstation yet.
                         Click "Generate Daily Report" above.
                       </td>
@@ -439,6 +446,15 @@ export const DailyReports: React.FC = () => {
                         <td className="p-4 font-bold text-slate-900 flex items-center gap-2">
                           <Calendar className="w-3.5 h-3.5 text-blue-600" />
                           <span>{r.report_date}</span>
+                        </td>
+                        <td className="p-4 font-sans">
+                          {(r.currentUser || r.summary?.currentUser || selectedNode?.currentUser) ? (
+                            <span className="font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100 text-[11px]">
+                              {r.currentUser || r.summary?.currentUser || selectedNode?.currentUser}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic">No User</span>
+                          )}
                         </td>
                         <td className="p-4 font-semibold text-slate-800">{r.avg_cpu?.toFixed(1)}%</td>
                         <td className="p-4 font-semibold text-rose-600">{r.max_cpu?.toFixed(1)}%</td>

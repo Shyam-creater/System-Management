@@ -90,6 +90,7 @@ export interface DailyReportItem {
   node_id: string;
   report_date: string;
   hostname: string;
+  currentUser?: string;
   is_simulated: boolean;
   avg_cpu: number;
   max_cpu: number;

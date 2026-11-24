@@ -73,11 +73,12 @@ export class SoftwareController {
           reports = reports.filter(r => r.node_id === nodeId);
         }
         const todayStr = new Date().toISOString().split('T')[0];
-        const header = 'Report Date,Node ID,Hostname,Type,Avg CPU (%),Peak CPU (%),Avg GPU (%),Peak GPU (%),Avg RAM (%),Peak RAM (%),Storage (%),Uptime (%),Alerts\n';
+        const header = 'Report Date,Node ID,Hostname,Current Login User,Type,Avg CPU (%),Peak CPU (%),Avg GPU (%),Peak GPU (%),Avg RAM (%),Peak RAM (%),Storage (%),Uptime (%),Alerts\n';
         const rows = reports.map(r => [
           r.report_date,
           `"${r.node_id}"`,
           `"${r.hostname}"`,
+          `"${r.currentUser || r.summary?.currentUser || 'No User'}"`,
           r.is_simulated ? 'SIMULATED' : 'REAL',
           (r.avg_cpu || 0).toFixed(1),
           (r.max_cpu || 0).toFixed(1),

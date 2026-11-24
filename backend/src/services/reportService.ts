@@ -29,6 +29,7 @@ export class ReportService {
           node_id: d.node_id,
           report_date: todayStr,
           hostname: d.hostname,
+          currentUser: d.currentUser || 'No User',
           is_simulated: d.is_simulated,
           avg_cpu: curCpu,
           max_cpu: curCpu,
@@ -44,6 +45,7 @@ export class ReportService {
           generated_at: Date.now() / 1000,
           summary: {
             hostname: d.hostname,
+            currentUser: d.currentUser || 'No User',
             ip: d.ip,
             system_type: d.system_type,
             recent_alerts: alerts.map(a => a.message)
@@ -85,6 +87,7 @@ export class ReportService {
         node_id: d.node_id,
         report_date: todayStr,
         hostname: d.hostname,
+        currentUser: d.currentUser || 'No User',
         is_simulated: d.is_simulated,
         avg_cpu: avgCpu,
         max_cpu: Math.round(maxCpu * 10) / 10,
@@ -100,6 +103,7 @@ export class ReportService {
         generated_at: Date.now() / 1000,
         summary: {
           hostname: d.hostname,
+          currentUser: d.currentUser || 'No User',
           ip: d.ip,
           system_type: d.system_type,
           recent_alerts: alerts.map(a => a.message)

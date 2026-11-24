@@ -212,6 +212,7 @@ export const L4_Report: ReportConfig = {
     { key: 'date', label: 'Date', type: 'date', sortable: true, defaultVisible: true, width: 110 },
     { key: 'lab', label: 'Lab', type: 'text', sortable: true, defaultVisible: true, width: 170 },
     { key: 'system', label: 'System', type: 'text', sortable: true, defaultVisible: true, width: 130 },
+    { key: 'currentUser', label: 'Current Login User', type: 'text', sortable: true, defaultVisible: true, width: 150 },
     { key: 'seat', label: 'Seat', type: 'number', sortable: true, defaultVisible: true, width: 80 },
     { key: 'user', label: 'User', type: 'text', sortable: true, defaultVisible: true, width: 130 },
     { key: 'login', label: 'Login', type: 'datetime', sortable: true, defaultVisible: true, width: 160 },
@@ -264,6 +265,7 @@ export const L4_Report: ReportConfig = {
         date: dateStr,
         lab: labMap.get(s.labId) || s.labId || 'Unassigned',
         system: dev?.hostname || s.nodeId,
+        currentUser: dev?.currentUser || s.username || 'No User',
         seat: dev?.seat || '-',
         user: s.username,
         login: s.loginAt,
@@ -282,6 +284,7 @@ export const L4_Report: ReportConfig = {
           date: loginDate.toISOString().split('T')[0],
           lab: labMap.get(dev.labId) || 'Computer Science Lab 1',
           system: dev.hostname || dev.node_id,
+          currentUser: realUser,
           seat: dev.seat || 1,
           user: realUser,
           login: loginDate.toISOString(),
@@ -331,6 +334,7 @@ export const L2_Report: ReportConfig = {
   columns: [
     { key: 'period', label: 'Period', type: 'text', sortable: true, defaultVisible: true, width: 140 },
     { key: 'lab', label: 'Lab', type: 'text', sortable: true, defaultVisible: true, width: 180 },
+    { key: 'currentUser', label: 'Current Login Users', type: 'text', sortable: true, defaultVisible: true, width: 170 },
     { key: 'sessions', label: 'Sessions', type: 'number', sortable: true, defaultVisible: true, total: 'sum', width: 110 },
     { key: 'hours', label: 'Hours', type: 'number', unit: 'hrs', sortable: true, defaultVisible: true, total: 'sum', width: 110 },
     { key: 'uniqueUsers', label: 'Unique Users', type: 'number', sortable: true, defaultVisible: true, total: 'sum', width: 120 },
@@ -395,9 +399,12 @@ export const L2_Report: ReportConfig = {
       const avgCpu = labDevs.length > 0 ? Number((labDevs.reduce((a, b) => a + (b.cpu_percent || 0), 0) / labDevs.length).toFixed(1)) : 0;
       const avgRam = labDevs.length > 0 ? Number((labDevs.reduce((a, b) => a + (b.ram_percent || 0), 0) / labDevs.length).toFixed(1)) : 0;
 
+      const activeLabUsers = labDevs.map(d => d.currentUser).filter(Boolean).join(', ') || Array.from(g.users).join(', ') || 'No User';
+
       rows.push({
         period: g.period,
         lab: lab?.name || g.labId,
+        currentUser: activeLabUsers,
         sessions: g.sessions,
         hours,
         uniqueUsers: g.users.size,
@@ -418,9 +425,12 @@ export const L2_Report: ReportConfig = {
         const avgRam = count > 0 ? Number((labDevs.reduce((a, b) => a + (b.ram_percent || 0), 0) / count).toFixed(1)) : 0;
         const period = now.toISOString().split('T')[0];
 
+        const activeLabUsers = labDevs.map(d => d.currentUser).filter(Boolean).join(', ') || 'No User';
+
         rows.push({
           period,
           lab: lab.name || 'Computer Science Lab 1',
+          currentUser: activeLabUsers,
           sessions: onlineCount,
           hours: Number((onlineCount * 2.5).toFixed(1)),
           uniqueUsers: onlineCount,
@@ -563,6 +573,7 @@ export const L5_Report: ReportConfig = {
   columns: [
     { key: 'lab', label: 'Lab', type: 'text', sortable: true, defaultVisible: true, width: 180 },
     { key: 'system', label: 'System', type: 'text', sortable: true, defaultVisible: true, width: 140 },
+    { key: 'currentUser', label: 'Current Login User', type: 'text', sortable: true, defaultVisible: true, width: 150 },
     { key: 'onlineMinutes', label: 'Online Minutes', type: 'duration', unit: 'min', sortable: true, defaultVisible: true, total: 'sum', width: 140 },
     { key: 'expectedMinutes', label: 'Expected Minutes', type: 'duration', unit: 'min', sortable: true, defaultVisible: true, total: 'sum', width: 150 },
     { key: 'availabilityPct', label: 'Availability %', type: 'percent', unit: '%', sortable: true, defaultVisible: true, total: 'avg', width: 130 },
@@ -589,6 +600,7 @@ export const L5_Report: ReportConfig = {
       return {
         lab: labMap.get(d.labId) || 'Unassigned',
         system: d.hostname || d.node_id,
+        currentUser: d.currentUser || 'No User',
         onlineMinutes,
         expectedMinutes,
         availabilityPct,
@@ -632,6 +644,7 @@ export const L6_Report: ReportConfig = {
     { key: 'time', label: 'Time', type: 'datetime', sortable: true, defaultVisible: true, width: 170 },
     { key: 'lab', label: 'Lab', type: 'text', sortable: true, defaultVisible: true, width: 170 },
     { key: 'system', label: 'System', type: 'text', sortable: true, defaultVisible: true, width: 140 },
+    { key: 'currentUser', label: 'Current Login User', type: 'text', sortable: true, defaultVisible: true, width: 150 },
     { key: 'user', label: 'User', type: 'text', sortable: true, defaultVisible: true, width: 130 },
     { key: 'process', label: 'Process', type: 'text', sortable: true, defaultVisible: true, width: 160 },
     { key: 'action', label: 'Action Taken', type: 'text', sortable: true, defaultVisible: true, width: 120 }
@@ -658,6 +671,7 @@ export const L6_Report: ReportConfig = {
       time: v.createdAt,
       lab: labMap.get(v.labId || '') || v.labId || 'General Fleet',
       system: v.nodeId,
+      currentUser: v.username || 'No User',
       user: v.username,
       process: v.processName,
       action: v.action === 'killed' ? 'Terminated' : 'Alerted'
@@ -697,6 +711,7 @@ export const L7_Report: ReportConfig = {
     { key: 'time', label: 'Time', type: 'datetime', sortable: true, defaultVisible: true, width: 170 },
     { key: 'lab', label: 'Lab', type: 'text', sortable: true, defaultVisible: true, width: 170 },
     { key: 'system', label: 'System', type: 'text', sortable: true, defaultVisible: true, width: 140 },
+    { key: 'currentUser', label: 'Current Login User', type: 'text', sortable: true, defaultVisible: true, width: 150 },
     { key: 'severity', label: 'Severity', type: 'text', sortable: true, defaultVisible: true, width: 110 },
     { key: 'rule', label: 'Rule / Category', type: 'text', sortable: true, defaultVisible: true, width: 150 },
     { key: 'message', label: 'Message', type: 'text', sortable: true, defaultVisible: true, width: 260 },
@@ -709,6 +724,10 @@ export const L7_Report: ReportConfig = {
     const labMap = new Map<string, string>();
     labs.forEach(l => labMap.set(l.id || l._id?.toString(), l.name));
     const labIds = labs.map(l => l.id);
+    const allDevices = await getScopedDevices(labs.map(l => l.id));
+    const devMap = new Map<string, any>();
+    allDevices.forEach(d => devMap.set(d.node_id, d));
+
     const alerts = await alertRepository.findRecent(undefined, 5000);
 
     const startSec = Math.floor(startDate.getTime() / 1000);
@@ -722,10 +741,12 @@ export const L7_Report: ReportConfig = {
 
     const rows = filtered.map(a => {
       const matchLab = labs.find(l => a.node_id?.startsWith(l.id));
+      const matchDev = devMap.get(a.node_id);
       return {
         time: new Date(a.timestamp * 1000),
         lab: matchLab?.name || 'General Fleet',
-        system: a.node_id,
+        system: matchDev?.hostname || a.node_id,
+        currentUser: matchDev?.currentUser || 'No User',
         severity: a.level,
         rule: a.category || 'System Rule',
         message: a.message,
@@ -734,7 +755,6 @@ export const L7_Report: ReportConfig = {
     });
 
     if (rows.length === 0) {
-      const allDevices = await getScopedDevices(labs.map(l => l.id));
       for (const dev of allDevices) {
         const time = dev.last_seen ? new Date(dev.last_seen * 1000) : new Date();
         const isHealthy = dev.health === 'HEALTHY' || !dev.health;
@@ -742,6 +762,7 @@ export const L7_Report: ReportConfig = {
           time,
           lab: labMap.get(dev.labId) || 'Computer Science Lab 1',
           system: dev.hostname || dev.node_id,
+          currentUser: dev.currentUser || 'No User',
           severity: isHealthy ? 'INFO' : dev.health,
           rule: isHealthy ? 'System Health Normal' : 'Resource Tripwire',
           message: isHealthy
@@ -786,6 +807,7 @@ export const L8_Report: ReportConfig = {
   columns: [
     { key: 'lab', label: 'Lab', type: 'text', sortable: true, defaultVisible: true, width: 180 },
     { key: 'system', label: 'System', type: 'text', sortable: true, defaultVisible: true, width: 140 },
+    { key: 'currentUser', label: 'Current Login User', type: 'text', sortable: true, defaultVisible: true, width: 150 },
     { key: 'requiredSoftware', label: 'Required Software', type: 'text', sortable: true, defaultVisible: true, width: 200 },
     { key: 'installedVersion', label: 'Installed Version', type: 'text', sortable: true, defaultVisible: true, width: 140 },
     { key: 'status', label: 'Status', type: 'text', sortable: true, defaultVisible: true, width: 120 }
@@ -810,6 +832,7 @@ export const L8_Report: ReportConfig = {
         rows.push({
           lab: labMap.get(dev.labId) || 'Unassigned',
           system: dev.hostname || dev.node_id,
+          currentUser: dev.currentUser || 'No User',
           requiredSoftware: req,
           installedVersion: ver,
           status
@@ -851,6 +874,7 @@ export const L9_Report: ReportConfig = {
     { key: 'time', label: 'Time', type: 'datetime', sortable: true, defaultVisible: true, width: 170 },
     { key: 'lab', label: 'Lab', type: 'text', sortable: true, defaultVisible: true, width: 180 },
     { key: 'system', label: 'System', type: 'text', sortable: true, defaultVisible: true, width: 140 },
+    { key: 'currentUser', label: 'Current Login User', type: 'text', sortable: true, defaultVisible: true, width: 150 },
     { key: 'command', label: 'Command', type: 'text', sortable: true, defaultVisible: true, width: 130 },
     { key: 'issuedBy', label: 'Issued By', type: 'text', sortable: true, defaultVisible: true, width: 130 },
     { key: 'status', label: 'Status', type: 'text', sortable: true, defaultVisible: true, width: 110 },
@@ -863,6 +887,10 @@ export const L9_Report: ReportConfig = {
     const labMap = new Map<string, string>();
     labs.forEach(l => labMap.set(l.id || l._id?.toString(), l.name));
 
+    const allDevices = await getScopedDevices(labs.map(l => l.id));
+    const devMap = new Map<string, any>();
+    allDevices.forEach(d => devMap.set(d.node_id, d));
+
     const cmds = await commandRepository.findAll(500);
     const filtered = cmds.filter((c: any) => {
       const t = new Date(c.createdAt).getTime();
@@ -872,7 +900,8 @@ export const L9_Report: ReportConfig = {
     const rows = filtered.map((c: any) => ({
       time: c.createdAt,
       lab: labMap.get(c.labId || '') || c.labId || 'General Fleet',
-      system: c.nodeId,
+      system: devMap.get(c.nodeId)?.hostname || c.nodeId,
+      currentUser: devMap.get(c.nodeId)?.currentUser || 'No User',
       command: c.type.toUpperCase(),
       issuedBy: c.createdBy || 'admin',
       status: c.status.toUpperCase(),
@@ -981,6 +1010,7 @@ export const L11_Report: ReportConfig = {
   columns: [
     { key: 'lab', label: 'Lab', type: 'text', sortable: true, defaultVisible: true, width: 180 },
     { key: 'system', label: 'System', type: 'text', sortable: true, defaultVisible: true, width: 140 },
+    { key: 'currentUser', label: 'Current Login User', type: 'text', sortable: true, defaultVisible: true, width: 140 },
     { key: 'user', label: 'User', type: 'text', sortable: true, defaultVisible: true, width: 140 },
     { key: 'login', label: 'Login', type: 'datetime', sortable: true, defaultVisible: true, width: 170 },
     { key: 'idleMinutes', label: 'Idle Minutes', type: 'duration', unit: 'min', sortable: true, defaultVisible: true, total: 'sum', width: 130 },
@@ -1003,6 +1033,7 @@ export const L11_Report: ReportConfig = {
     const rows = sessions.filter(s => (s.duration || 0) > 40 && Math.random() < 0.25).map(s => ({
       lab: labMap.get(s.labId) || 'Unassigned',
       system: s.nodeId,
+      currentUser: s.username || 'No User',
       user: s.username,
       login: s.loginAt,
       idleMinutes: Math.floor((s.duration || 45) * 0.6),
@@ -1041,6 +1072,7 @@ export const L12_Report: ReportConfig = {
   columns: [
     { key: 'lab', label: 'Lab', type: 'text', sortable: true, defaultVisible: true, width: 180 },
     { key: 'system', label: 'System', type: 'text', sortable: true, defaultVisible: true, width: 140 },
+    { key: 'currentUser', label: 'Current Login User', type: 'text', sortable: true, defaultVisible: true, width: 140 },
     { key: 'user', label: 'User', type: 'text', sortable: true, defaultVisible: true, width: 140 },
     { key: 'login', label: 'Login', type: 'datetime', sortable: true, defaultVisible: true, width: 170 },
     { key: 'logout', label: 'Logout', type: 'datetime', sortable: true, defaultVisible: true, width: 170 },
@@ -1066,6 +1098,7 @@ export const L12_Report: ReportConfig = {
     }).map(s => ({
       lab: labMap.get(s.labId) || 'Unassigned',
       system: s.nodeId,
+      currentUser: s.username || 'No User',
       user: s.username,
       login: s.loginAt,
       logout: s.logoutAt || 'Active',

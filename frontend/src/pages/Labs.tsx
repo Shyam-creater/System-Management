@@ -477,7 +477,7 @@ export const Labs: React.FC = () => {
 
   // Computed Processes for the active lab
   const effectiveProcessNodeId = selectedProcessNodeId || 'ALL';
-  const labProcesses: (ProcessItem & { hostname?: string; seat?: number | null; node_id?: string })[] = [];
+  const labProcesses: (ProcessItem & { hostname?: string; seat?: number | null; node_id?: string; currentUser?: string | null })[] = [];
 
   machines.forEach((m) => {
     if (effectiveProcessNodeId === 'ALL' || effectiveProcessNodeId === m.node_id) {
@@ -486,7 +486,8 @@ export const Labs: React.FC = () => {
           ...p,
           hostname: m.hostname,
           seat: m.seat,
-          node_id: m.node_id
+          node_id: m.node_id,
+          currentUser: m.currentUser || 'No User'
         });
       });
     }
@@ -1352,6 +1353,7 @@ export const Labs: React.FC = () => {
                   <tr>
                     <th className="py-2.5 px-3">PID</th>
                     <th className="py-2.5 px-3">Workstation</th>
+                    <th className="py-2.5 px-3">Current Login User</th>
                     <th className="py-2.5 px-3">Process Name</th>
                     <th className="py-2.5 px-3">User</th>
                     <th className="py-2.5 px-3">Category</th>
@@ -1364,7 +1366,7 @@ export const Labs: React.FC = () => {
                 <tbody className="divide-y divide-slate-100 font-mono text-[11px] text-slate-700">
                   {displayProcesses.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="py-12 text-center text-slate-400 font-sans">
+                      <td colSpan={10} className="py-12 text-center text-slate-400 font-sans">
                         No active processes matching the selected filters.
                       </td>
                     </tr>
@@ -1384,6 +1386,15 @@ export const Labs: React.FC = () => {
                               <span className="ml-1.5 text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded">
                                 #{p.seat}
                               </span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 font-sans">
+                            {p.currentUser && p.currentUser !== 'No User' ? (
+                              <span className="font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100 text-[11px]">
+                                {p.currentUser}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 italic">No User</span>
                             )}
                           </td>
                           <td className="py-2.5 px-3 font-sans font-medium text-slate-900 flex items-center gap-2">
@@ -1529,6 +1540,7 @@ export const Labs: React.FC = () => {
                     <tr>
                       <th className="py-2.5 px-3">Date</th>
                       <th className="py-2.5 px-3">Workstation</th>
+                      <th className="py-2.5 px-3">Current Login User</th>
                       <th className="py-2.5 px-3">Avg CPU</th>
                       <th className="py-2.5 px-3">Peak CPU</th>
                       <th className="py-2.5 px-3">Avg GPU</th>
@@ -1555,6 +1567,15 @@ export const Labs: React.FC = () => {
                                 </span>
                               )}
                             </div>
+                          </td>
+                          <td className="py-2.5 px-3 font-sans">
+                            {(m?.currentUser || r.currentUser || r.summary?.currentUser) && (m?.currentUser || r.currentUser || r.summary?.currentUser) !== 'No User' ? (
+                              <span className="font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100 text-[11px]">
+                                {m?.currentUser || r.currentUser || r.summary?.currentUser}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 italic">No User</span>
+                            )}
                           </td>
                           <td className="py-2.5 px-3">{(r.avg_cpu ?? 0).toFixed(1)}%</td>
                           <td className="py-2.5 px-3 font-bold text-amber-600">{(r.max_cpu ?? 0).toFixed(1)}%</td>
