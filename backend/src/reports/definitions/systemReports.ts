@@ -193,6 +193,7 @@ export const S2_Report: ReportConfig = {
 
     const rows: any[] = [];
     for (const dev of devices) {
+      let devRows = 0;
       const history = await telemetryRepository.findHistory(dev.node_id, startSec, 350);
       if (history && history.length > 0) {
         for (const t of history) {
@@ -210,11 +211,12 @@ export const S2_Report: ReportConfig = {
             gpuPct: Number((t.gpu_percent || 0).toFixed(1)),
             processCount: t.process_count || 0
           });
+          devRows++;
         }
       }
 
-      // If no historical points in range, show real current live snapshot
-      if (rows.length === 0) {
+      // If no historical points in range for this device, show real current live snapshot
+      if (devRows === 0) {
         const lastSeenDate = dev.last_seen ? new Date(dev.last_seen * 1000) : new Date();
         rows.push({
           timestamp: lastSeenDate,
@@ -446,7 +448,7 @@ export const S5_Report: ReportConfig = {
     const rows: any[] = [];
 
     for (const inv of inventories) {
-      const dev = devMap.get(inv.node_id);
+      const dev = devMap.get(inv.node_id) || devices.find(d => d.node_id === inv.node_id || (inv.node_id && inv.node_id.includes(d.hostname)) || (d.hostname && inv.node_id?.includes(d.hostname)));
       if (!dev) continue;
 
       for (const p of inv.packages || []) {

@@ -2,6 +2,7 @@ import { deviceRepository } from '../repositories/deviceRepository.js';
 import { telemetryRepository } from '../repositories/telemetryRepository.js';
 import { processRepository } from '../repositories/processRepository.js';
 import { alertRepository } from '../repositories/alertRepository.js';
+import { detectActiveUser } from '../reports/dataHelper.js';
 import { io } from '../sockets/socketHandler.js';
 import { logger } from '../utils/logger.js';
 
@@ -71,6 +72,7 @@ export class TelemetryService {
     }
 
     // 2. Upsert Device Entry
+    const detectedUser = detectActiveUser(payload.processes);
     await deviceRepository.upsert({
       node_id: nodeId,
       hostname: payload.hostname,
@@ -78,6 +80,7 @@ export class TelemetryService {
       mac: payload.mac || undefined,
       interface: payload.interface || undefined,
       system_type: payload.system_type || 'Unknown OS',
+      currentUser: (detectedUser && detectedUser !== 'No User') ? detectedUser : undefined,
       is_simulated: Boolean(payload.is_simulated),
       last_seen: now,
       status: 'ONLINE',

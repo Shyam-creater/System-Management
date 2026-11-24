@@ -5,6 +5,7 @@ import { deviceRepository } from '../repositories/deviceRepository.js';
 import { processRepository } from '../repositories/processRepository.js';
 import { telemetryRepository } from '../repositories/telemetryRepository.js';
 import { softwareRepository } from '../repositories/softwareRepository.js';
+import { detectActiveUser } from '../reports/dataHelper.js';
 import { SSHNode } from '../models/SSHNode.js';
 import { isDatabaseConnected } from '../config/database.js';
 import { logger } from '../utils/logger.js';
@@ -196,6 +197,7 @@ except Exception as e:
         }
 
         // 1. Update Device repository with ALL metrics
+        const detectedUser = detectActiveUser(t.processes);
         await deviceRepository.upsert({
           node_id: nodeId,
           hostname: t.hostname || node.hostname,
@@ -203,6 +205,7 @@ except Exception as e:
           mac: t.mac || null,
           interface: t.interface || 'eth0',
           system_type: `${t.os || 'Ubuntu Linux'} (${t.cpu_model || 'x86_64'})`,
+          currentUser: (detectedUser && detectedUser !== 'No User') ? detectedUser : undefined,
           is_simulated: false,
           is_ssh_agentless: true,
           status: 'ONLINE' as const,

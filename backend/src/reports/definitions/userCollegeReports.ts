@@ -168,9 +168,11 @@ export const C1_Report: ReportConfig = {
       if (occupancyPct > 75) statusLabel = 'High Load';
       else if (occupancyPct < 25) statusLabel = 'Underutilized';
 
+      const realUsers = [...new Set(labDevs.map(d => d.currentUser || d.user).filter(u => u && u !== 'No User'))];
       labRows.push({
         lab: lab.name,
-        user: labDevs.map(d => d.currentUser).filter(Boolean).join(', ') || 'No User',
+        user: realUsers.length > 0 ? realUsers.join(', ') : 'No User',
+        currentUser: realUsers.length > 0 ? realUsers.join(', ') : 'No User',
         occupancyPct,
         seatHours,
         peakConcurrencyPct: Number(Math.min(100, occupancyPct * 1.35).toFixed(1)),
@@ -256,11 +258,13 @@ export const C2_Report: ReportConfig = {
       const totalRam = labDevs.reduce((a, b) => a + (b.ram_total_gb || 0), 0);
       const totalProcs = labDevs.reduce((a, b) => a + (b.process_count || 0), 0);
 
+      const realUsers = [...new Set(labDevs.map(d => d.currentUser || d.user).filter(u => u && u !== 'No User'))];
       return {
         lab: lab.name || labId,
         systemsCount: count,
         onlineSystems: online,
-        user: labDevs.map(d => d.currentUser).filter(Boolean).join(', ') || 'No User',
+        user: realUsers.length > 0 ? realUsers.join(', ') : 'No User',
+        currentUser: realUsers.length > 0 ? realUsers.join(', ') : 'No User',
         avgCpu,
         avgRam,
         avgDisk,

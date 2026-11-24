@@ -398,7 +398,8 @@ export const L2_Report: ReportConfig = {
       const avgCpu = labDevs.length > 0 ? Number((labDevs.reduce((a, b) => a + (b.cpu_percent || 0), 0) / labDevs.length).toFixed(1)) : 0;
       const avgRam = labDevs.length > 0 ? Number((labDevs.reduce((a, b) => a + (b.ram_percent || 0), 0) / labDevs.length).toFixed(1)) : 0;
 
-      const activeLabUsers = labDevs.map(d => d.currentUser).filter(Boolean).join(', ') || Array.from(g.users).join(', ') || 'No User';
+      const realUsers = [...new Set(labDevs.map(d => d.currentUser || d.user).filter(u => u && u !== 'No User'))];
+      const activeLabUsers = realUsers.length > 0 ? realUsers.join(', ') : (Array.from(g.users).filter(u => u && u !== 'No User').join(', ') || 'No User');
 
       rows.push({
         period: g.period,
@@ -425,7 +426,8 @@ export const L2_Report: ReportConfig = {
         const avgRam = count > 0 ? Number((labDevs.reduce((a, b) => a + (b.ram_percent || 0), 0) / count).toFixed(1)) : 0;
         const period = now.toISOString().split('T')[0];
 
-        const activeLabUsers = labDevs.map(d => d.currentUser).filter(Boolean).join(', ') || 'No User';
+        const realUsers = [...new Set(labDevs.map(d => d.currentUser || d.user).filter(u => u && u !== 'No User'))];
+        const activeLabUsers = realUsers.length > 0 ? realUsers.join(', ') : 'No User';
 
         rows.push({
           period,
@@ -742,13 +744,13 @@ export const L7_Report: ReportConfig = {
 
     const rows = filtered.map(a => {
       const matchLab = labs.find(l => a.node_id?.startsWith(l.id));
-      const matchDev = devMap.get(a.node_id);
+      const matchDev = devMap.get(a.node_id) || allDevices.find(d => d.node_id === a.node_id || (a.node_id && a.node_id.includes(d.hostname)) || (d.hostname && a.node_id?.includes(d.hostname)));
       return {
         time: new Date(a.timestamp * 1000),
-        lab: matchLab?.name || 'General Fleet',
+        lab: matchLab?.name || (matchDev ? labMap.get(matchDev.labId) : 'Computer Science Lab 1'),
         system: matchDev?.hostname || a.node_id,
-        user: matchDev?.currentUser || 'No User',
-        currentUser: matchDev?.currentUser || 'No User',
+        user: matchDev?.currentUser || matchDev?.user || 'No User',
+        currentUser: matchDev?.currentUser || matchDev?.user || 'No User',
         severity: a.level,
         rule: a.category || 'System Rule',
         message: a.message,

@@ -6,6 +6,7 @@ import {
 } from './types.js';
 import { labRepo, sessionRepo } from '../labs.js';
 import { deviceRepository } from '../repositories/deviceRepository.js';
+import { processRepository } from '../repositories/processRepository.js';
 import { hourlyRollupRepository } from '../repositories/hourlyRollupRepository.js';
 import { softwareRepository } from '../repositories/softwareRepository.js';
 import { faultRepository } from '../repositories/faultRepository.js';
@@ -95,11 +96,81 @@ export async function getScopedLabs(scope: UserScope, requestedLabIds?: string[]
   return allowed;
 }
 
+export const SYSTEM_IGNORED_USERS = new Set([
+  'root', 'daemon', 'nobody', 'messagebus', 'message+', 'syslog', 'sshd',
+  'systemd', 'systemd+', 'systemd-resolve', 'systemd-network', 'sync',
+  'mongodb', 'mysql', 'neo4j', 'postgres', 'redis', 'rabbitmq',
+  'nt authority\\system', 'nt authority\\network service', 'nt authority\\local service',
+  'window manager\\dwm-1', 'window manager\\dwm-2', 'window manager\\dwm-3'
+]);
+
+export function detectActiveUser(processes?: any[]): string {
+  if (!processes || processes.length === 0) return 'No User';
+
+  for (const p of processes) {
+    const u = (p.user || p.username)?.trim();
+    if (!u) continue;
+    const ul = u.toLowerCase();
+    if (SYSTEM_IGNORED_USERS.has(ul) || ul.startsWith('_') || ul.startsWith('system') || ul.startsWith('nt authority')) continue;
+    if (p.is_user_app) {
+      return u;
+    }
+  }
+
+  for (const p of processes) {
+    const u = (p.user || p.username)?.trim();
+    if (!u) continue;
+    const ul = u.toLowerCase();
+    if (SYSTEM_IGNORED_USERS.has(ul) || ul.startsWith('_') || ul.startsWith('system') || ul.startsWith('nt authority')) continue;
+    return u;
+  }
+
+  return 'No User';
+}
+
+export async function resolveDeviceUser(dev: any): Promise<string> {
+  if (dev.currentUser && dev.currentUser !== 'No User' && dev.currentUser !== 'None' && dev.currentUser !== '-') {
+    return dev.currentUser;
+  }
+
+  let procs = dev.processes || [];
+  if (!procs || procs.length === 0) {
+    try {
+      const snapshot = await processRepository.getLatestSnapshot(dev.node_id);
+      if (snapshot?.processes && snapshot.processes.length > 0) {
+        procs = snapshot.processes;
+      }
+    } catch {}
+  }
+
+  const detected = detectActiveUser(procs);
+  if (detected && detected !== 'No User') {
+    return detected;
+  }
+
+  try {
+    const sessions = await sessionRepo.find({ nodeId: dev.node_id, limit: 1 });
+    if (sessions && sessions.length > 0 && sessions[0].username) {
+      return sessions[0].username;
+    }
+  } catch {}
+
+  return 'No User';
+}
+
 export async function getScopedDevices(allowedLabIds: string[], requestedSystemIds?: string[]): Promise<any[]> {
   const allDevices = await deviceRepository.findAll(true);
   let matched = allDevices.filter(d => allowedLabIds.includes(d.labId));
   if (requestedSystemIds && requestedSystemIds.length > 0) {
     matched = matched.filter(d => requestedSystemIds.includes(d.node_id));
+  }
+  for (const dev of matched) {
+    const resolvedUser = await resolveDeviceUser(dev);
+    dev.currentUser = resolvedUser;
+    dev.user = resolvedUser;
+    if (resolvedUser && resolvedUser !== 'No User') {
+      await deviceRepository.upsert({ node_id: dev.node_id, currentUser: resolvedUser });
+    }
   }
   return matched;
 }

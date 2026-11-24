@@ -2,6 +2,7 @@ import { deviceRepository } from '../repositories/deviceRepository.js';
 import { processRepository } from '../repositories/processRepository.js';
 import { telemetryRepository } from '../repositories/telemetryRepository.js';
 import { sshService } from './sshService.js';
+import { detectActiveUser } from '../reports/dataHelper.js';
 import { IDevice } from '../models/Device.js';
 
 export class DeviceService {
@@ -36,12 +37,16 @@ export class DeviceService {
 
       // Fetch latest process snapshot
       const snapshot = await processRepository.getLatestSnapshot(d.node_id);
+      const procs = (snapshot?.processes && snapshot.processes.length > 0) ? snapshot.processes : (d.processes || []);
+      const activeUser = (d.currentUser && d.currentUser !== 'No User') ? d.currentUser : detectActiveUser(procs);
 
       nodesMap[d.node_id] = {
         ...d,
+        currentUser: activeUser,
+        user: activeUser,
         status: computedStatus,
         seconds_since_seen: secondsSinceSeen,
-        processes: (snapshot?.processes && snapshot.processes.length > 0) ? snapshot.processes : (d.processes || [])
+        processes: procs
       };
     }
 
