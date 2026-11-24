@@ -16,6 +16,7 @@ export interface ILab extends Document {
   description?: string;
   capacity?: number;
   prefix?: string;
+  roomNumber?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -38,7 +39,8 @@ const LabSchema = new Schema<ILab>(
     name: { type: String, required: true, unique: true, index: true },
     description: { type: String, default: '' },
     capacity: { type: Number, default: 30 },
-    prefix: { type: String, default: '' }
+    prefix: { type: String, default: '' },
+    roomNumber: { type: String, default: '' }
   },
   { timestamps: true, collection: 'labs' }
 );
@@ -74,6 +76,7 @@ function seedDefaultLabs() {
       description: 'Systems Programming & OS Workstations',
       capacity: 30,
       prefix: 'Ubuntu',
+      roomNumber: 'SJT-418',
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -84,6 +87,7 @@ function seedDefaultLabs() {
       description: 'High-Performance GPU & Simulation Desktops',
       capacity: 25,
       prefix: 'Windows',
+      roomNumber: 'SJT-515',
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -157,7 +161,7 @@ export const labRepo = {
     return memoryLabs.get(id) || null;
   },
 
-  async create(data: { name: string; description?: string; capacity?: number; prefix?: string }): Promise<any> {
+  async create(data: { name: string; description?: string; capacity?: number; prefix?: string; roomNumber?: string }): Promise<any> {
     const id = 'lab-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
     const newLab = {
       _id: id,
@@ -166,6 +170,7 @@ export const labRepo = {
       description: data.description || '',
       capacity: data.capacity || 30,
       prefix: data.prefix || '',
+      roomNumber: data.roomNumber || '',
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -177,7 +182,8 @@ export const labRepo = {
           name: data.name,
           description: data.description,
           capacity: data.capacity,
-          prefix: data.prefix
+          prefix: data.prefix,
+          roomNumber: data.roomNumber
         });
         return { ...doc.toObject(), id: doc._id.toString() };
       } catch (err: any) {
@@ -465,7 +471,7 @@ labsRouter.get('/labs', async (req: Request, res: Response) => {
 // POST /api/labs - Create a lab
 labsRouter.post('/labs', async (req: Request, res: Response) => {
   try {
-    const { name, description, capacity, prefix } = req.body;
+    const { name, description, capacity, prefix, roomNumber } = req.body;
     if (!name || typeof name !== 'string' || !name.trim()) {
       return res.status(400).json({ error: 'Lab name is required' });
     }
@@ -480,7 +486,8 @@ labsRouter.post('/labs', async (req: Request, res: Response) => {
       name: name.trim(),
       description: description?.trim() || '',
       capacity: capacity ? Number(capacity) : 30,
-      prefix: prefix?.trim() || ''
+      prefix: prefix?.trim() || '',
+      roomNumber: roomNumber?.trim() || ''
     });
 
     if (io) io.emit('lab:update', { action: 'create', lab });
@@ -502,7 +509,7 @@ labsRouter.get('/labs/:id', async (req: Request, res: Response) => {
 labsRouter.put('/labs/:id', async (req: Request, res: Response) => {
   try {
     const labId = String(req.params.id);
-    const { name, description, capacity, prefix } = req.body;
+    const { name, description, capacity, prefix, roomNumber } = req.body;
     if (name) {
       const existing = await labRepo.getAll();
       const conflict = existing.find(l => l.id !== labId && l.name.toLowerCase() === name.trim().toLowerCase());
@@ -515,7 +522,8 @@ labsRouter.put('/labs/:id', async (req: Request, res: Response) => {
       ...(name ? { name: name.trim() } : {}),
       ...(description !== undefined ? { description: description.trim() } : {}),
       ...(capacity ? { capacity: Number(capacity) } : {}),
-      ...(prefix !== undefined ? { prefix: prefix.trim() } : {})
+      ...(prefix !== undefined ? { prefix: prefix.trim() } : {}),
+      ...(roomNumber !== undefined ? { roomNumber: roomNumber.trim() } : {})
     });
 
     if (!updated) return res.status(404).json({ error: 'Lab not found' });

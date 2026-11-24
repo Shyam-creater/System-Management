@@ -28,6 +28,7 @@ export const LabsHub: React.FC = () => {
   // Add Lab State
   const [isAddLabOpen, setIsAddLabOpen] = useState(false);
   const [newLabName, setNewLabName] = useState('');
+  const [newLabRoomNumber, setNewLabRoomNumber] = useState('');
   const [newLabCapacity, setNewLabCapacity] = useState(25);
   const [newLabDesc, setNewLabDesc] = useState('');
   const [newLabPrefix, setNewLabPrefix] = useState('');
@@ -35,6 +36,7 @@ export const LabsHub: React.FC = () => {
   // Edit Lab State
   const [editingLab, setEditingLab] = useState<any | null>(null);
   const [editName, setEditName] = useState('');
+  const [editRoomNumber, setEditRoomNumber] = useState('');
   const [editCapacity, setEditCapacity] = useState(25);
   const [editDesc, setEditDesc] = useState('');
   const [editPrefix, setEditPrefix] = useState('');
@@ -56,11 +58,12 @@ export const LabsHub: React.FC = () => {
 
   // Create Lab Mutation
   const createLabMutation = useMutation({
-    mutationFn: (data: { name: string; capacity: number; description?: string; prefix?: string }) =>
+    mutationFn: (data: { name: string; capacity: number; description?: string; prefix?: string; roomNumber?: string }) =>
       labsApi.createLab(data),
     onSuccess: () => {
       setIsAddLabOpen(false);
       setNewLabName('');
+      setNewLabRoomNumber('');
       setNewLabDesc('');
       setNewLabPrefix('');
       setFeedback('Laboratory successfully created.');
@@ -96,6 +99,7 @@ export const LabsHub: React.FC = () => {
     e.stopPropagation();
     setEditingLab(lab);
     setEditName(lab.name || '');
+    setEditRoomNumber(lab.roomNumber || '');
     setEditCapacity(lab.capacity || 25);
     setEditDesc(lab.description || '');
     setEditPrefix(lab.prefix || '');
@@ -177,9 +181,16 @@ export const LabsHub: React.FC = () => {
                       <Building2 className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="text-base font-bold text-slate-900 group-hover:text-blue-600 transition">
-                        {lab.name}
-                      </h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base font-bold text-slate-900 group-hover:text-blue-600 transition">
+                          {lab.name}
+                        </h3>
+                        {lab.roomNumber && (
+                          <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-mono font-bold text-[10px] border border-blue-200/60 shadow-2xs">
+                            Room {lab.roomNumber}
+                          </span>
+                        )}
+                      </div>
                       <span className="text-[11px] text-slate-400">
                         {lab.description || 'Department of Computer Science'}
                       </span>
@@ -263,15 +274,27 @@ export const LabsHub: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <label className="block text-slate-700 font-bold mb-1">Seat Capacity</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={newLabCapacity}
-                  onChange={(e) => setNewLabCapacity(parseInt(e.target.value, 10))}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-blue-500 font-mono"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Room Number (Optional)</label>
+                  <input
+                    type="text"
+                    value={newLabRoomNumber}
+                    onChange={(e) => setNewLabRoomNumber(e.target.value)}
+                    placeholder="e.g. SJT-418"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-blue-500 font-semibold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Seat Capacity</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={newLabCapacity}
+                    onChange={(e) => setNewLabCapacity(parseInt(e.target.value, 10))}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-blue-500 font-mono"
+                  />
+                </div>
               </div>
 
               <div>
@@ -309,6 +332,7 @@ export const LabsHub: React.FC = () => {
                   newLabName &&
                   createLabMutation.mutate({
                     name: newLabName,
+                    roomNumber: newLabRoomNumber,
                     capacity: newLabCapacity,
                     description: newLabDesc,
                     prefix: newLabPrefix
@@ -351,15 +375,27 @@ export const LabsHub: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <label className="block text-slate-700 font-bold mb-1">Seat Capacity</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={editCapacity}
-                  onChange={(e) => setEditCapacity(parseInt(e.target.value, 10))}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-blue-500 font-mono"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Room Number</label>
+                  <input
+                    type="text"
+                    value={editRoomNumber}
+                    onChange={(e) => setEditRoomNumber(e.target.value)}
+                    placeholder="e.g. SJT-418"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-blue-500 font-semibold text-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Seat Capacity</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={editCapacity}
+                    onChange={(e) => setEditCapacity(parseInt(e.target.value, 10))}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-blue-500 font-mono"
+                  />
+                </div>
               </div>
 
               <div>
@@ -397,6 +433,7 @@ export const LabsHub: React.FC = () => {
                     id: editingLab.id || editingLab._id,
                     data: {
                       name: editName,
+                      roomNumber: editRoomNumber,
                       capacity: editCapacity,
                       description: editDesc,
                       prefix: editPrefix

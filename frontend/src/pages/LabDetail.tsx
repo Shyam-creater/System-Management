@@ -63,6 +63,7 @@ export const LabDetail: React.FC = () => {
   const [isEditLabOpen, setIsEditLabOpen] = useState(false);
   const [isDeleteLabOpen, setIsDeleteLabOpen] = useState(false);
   const [editName, setEditName] = useState('');
+  const [editRoomNumber, setEditRoomNumber] = useState('');
   const [editCapacity, setEditCapacity] = useState(25);
   const [editDesc, setEditDesc] = useState('');
   const [editPrefix, setEditPrefix] = useState('');
@@ -85,6 +86,7 @@ export const LabDetail: React.FC = () => {
   useEffect(() => {
     if (currentLab) {
       setEditName(currentLab.name || '');
+      setEditRoomNumber(currentLab.roomNumber || '');
       setEditCapacity(currentLab.capacity || 25);
       setEditDesc(currentLab.description || '');
       setEditPrefix(currentLab.prefix || '');
@@ -205,7 +207,14 @@ export const LabDetail: React.FC = () => {
               <Building2 className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">{currentLab?.name || 'Computer Science Lab 1'}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">{currentLab?.name || 'Computer Science Lab 1'}</h1>
+                {currentLab?.roomNumber && (
+                  <span className="px-2.5 py-0.5 rounded-lg bg-blue-50 text-blue-700 font-mono font-bold text-xs border border-blue-200/80 shadow-2xs">
+                    Room {currentLab.roomNumber}
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-slate-500 mt-0.5">
                 {labNodes.length} Workstations Total • <span className="text-emerald-600 font-bold">{onlineNodes.length} Online</span> • <span className="text-indigo-600 font-bold">{inUseNodes.length} In Use</span> • <span className="text-rose-500 font-bold">{offlineNodes.length} Offline</span>
               </p>
@@ -890,15 +899,27 @@ export const LabDetail: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <label className="block text-slate-700 font-bold mb-1">Seat Capacity</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={editCapacity}
-                  onChange={(e) => setEditCapacity(parseInt(e.target.value, 10))}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-blue-500 font-mono"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Room Number</label>
+                  <input
+                    type="text"
+                    value={editRoomNumber}
+                    onChange={(e) => setEditRoomNumber(e.target.value)}
+                    placeholder="e.g. SJT-418"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-blue-500 font-semibold text-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Seat Capacity</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={editCapacity}
+                    onChange={(e) => setEditCapacity(parseInt(e.target.value, 10))}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-blue-500 font-mono"
+                  />
+                </div>
               </div>
 
               <div>
@@ -934,6 +955,7 @@ export const LabDetail: React.FC = () => {
                   editName &&
                   updateLabMutation.mutate({
                     name: editName,
+                    roomNumber: editRoomNumber,
                     capacity: editCapacity,
                     description: editDesc,
                     prefix: editPrefix

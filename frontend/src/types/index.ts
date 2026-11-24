@@ -136,6 +136,7 @@ export interface LabItem {
   description?: string;
   capacity?: number;
   prefix?: string;
+  roomNumber?: string;
   total?: number;
   online?: number;
   inUse?: number;
