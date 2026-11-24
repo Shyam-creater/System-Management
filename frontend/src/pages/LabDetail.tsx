@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -15,6 +15,7 @@ import {
   ArrowRight,
   MoreVertical,
   Trash2,
+  Edit3,
   Layers,
   Sparkles,
   Clock,
@@ -58,6 +59,14 @@ export const LabDetail: React.FC = () => {
   // Delete node modal
   const [nodeToDelete, setNodeToDelete] = useState<any | null>(null);
 
+  // Edit / Delete Lab state
+  const [isEditLabOpen, setIsEditLabOpen] = useState(false);
+  const [isDeleteLabOpen, setIsDeleteLabOpen] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editCapacity, setEditCapacity] = useState(25);
+  const [editDesc, setEditDesc] = useState('');
+  const [editPrefix, setEditPrefix] = useState('');
+
   // Queries
   const { data: labsData } = useQuery({
     queryKey: ['labs'],
@@ -72,6 +81,37 @@ export const LabDetail: React.FC = () => {
 
   const labs = labsData?.labs || [];
   const currentLab = labs.find((l: any) => (l.id || l._id) === labId) || labs[0];
+
+  useEffect(() => {
+    if (currentLab) {
+      setEditName(currentLab.name || '');
+      setEditCapacity(currentLab.capacity || 25);
+      setEditDesc(currentLab.description || '');
+      setEditPrefix(currentLab.prefix || '');
+    }
+  }, [currentLab]);
+
+  // Update Lab Mutation
+  const updateLabMutation = useMutation({
+    mutationFn: (data: any) => labsApi.updateLab(currentLab?.id || labId!, data),
+    onSuccess: () => {
+      setIsEditLabOpen(false);
+      setActionFeedback('Laboratory details updated successfully.');
+      setTimeout(() => setActionFeedback(null), 3000);
+      queryClient.invalidateQueries({ queryKey: ['labs'] });
+    }
+  });
+
+  // Delete Lab Mutation
+  const deleteLabMutation = useMutation({
+    mutationFn: () => labsApi.deleteLab(currentLab?.id || labId!),
+    onSuccess: () => {
+      setIsDeleteLabOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['labs'] });
+      queryClient.invalidateQueries({ queryKey: ['nodes'] });
+      navigate('/labs');
+    }
+  });
 
   const rawNodes = fleetData?.nodes ? Object.values(fleetData.nodes) : [];
   const labNodes = rawNodes.filter((n: any) => n.labId === (currentLab?.id || labId));
@@ -173,7 +213,23 @@ export const LabDetail: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setIsEditLabOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold transition shadow-2xs"
+            title="Edit Laboratory Details"
+          >
+            <Edit3 className="w-3.5 h-3.5 text-slate-500" />
+            <span>Edit Lab</span>
+          </button>
+          <button
+            onClick={() => setIsDeleteLabOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-bold transition shadow-2xs"
+            title="Delete Laboratory"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Delete Lab</span>
+          </button>
           <button
             onClick={() => setIsMultiSelect(!isMultiSelect)}
             className={`px-3 py-2 rounded-xl text-xs font-bold transition border ${
@@ -808,6 +864,132 @@ export const LabDetail: React.FC = () => {
         labId={currentLab?.id || labId}
         labName={currentLab?.name}
       />
+
+      {/* Edit Lab Modal */}
+      {isEditLabOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 p-6 max-w-md w-full space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Edit3 className="w-4 h-4 text-blue-600" />
+                <h3 className="text-base font-bold text-slate-900">Edit Laboratory Details</h3>
+              </div>
+              <button onClick={() => setIsEditLabOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">Laboratory Name *</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-blue-500 font-semibold text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">Seat Capacity</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={editCapacity}
+                  onChange={(e) => setEditCapacity(parseInt(e.target.value, 10))}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-blue-500 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">Description</label>
+                <input
+                  type="text"
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">Computer Hostname Prefix</label>
+                <input
+                  type="text"
+                  value={editPrefix}
+                  onChange={(e) => setEditPrefix(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-blue-500 font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                onClick={() => setIsEditLabOpen(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() =>
+                  editName &&
+                  updateLabMutation.mutate({
+                    name: editName,
+                    capacity: editCapacity,
+                    description: editDesc,
+                    prefix: editPrefix
+                  })
+                }
+                disabled={!editName || updateLabMutation.isPending}
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm"
+              >
+                {updateLabMutation.isPending ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Lab Confirmation Modal */}
+      {isDeleteLabOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 p-6 max-w-md w-full space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-2xl bg-rose-100 text-rose-600">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Delete Laboratory</h3>
+                <p className="text-xs text-slate-500">This action will remove the laboratory room.</p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 space-y-1">
+              <p className="font-bold">
+                Are you sure you want to delete "{currentLab?.name || 'this laboratory'}"?
+              </p>
+              <p className="text-rose-700">
+                All computers currently assigned to this room will be safely unassigned and moved to the unassigned fleet.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={() => setIsDeleteLabOpen(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => deleteLabMutation.mutate()}
+                disabled={deleteLabMutation.isPending}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm"
+              >
+                {deleteLabMutation.isPending ? 'Deleting...' : 'Delete Laboratory'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
