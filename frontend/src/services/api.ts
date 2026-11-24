@@ -54,7 +54,17 @@ export const alertsApi = {
     if (limit) qs.append('limit', limit.toString());
     const str = qs.toString();
     return api.get(`/alerts${str ? `?${str}` : ''}`).then(res => res.data);
-  }
+  },
+  resolve: (alertId: string) => api.post(`/alerts/${alertId}/resolve`).then(res => res.data)
+};
+
+export const controllerApi = {
+  killProcess: (nodeId: string, pid: number, signal?: string) =>
+    api.post('/controller/kill', { node_id: nodeId, pid, signal }).then(res => res.data),
+  rebootNode: (nodeId: string) =>
+    api.post('/controller/reboot', { node_id: nodeId }).then(res => res.data),
+  lockNode: (nodeId: string) =>
+    api.post('/controller/lock', { node_id: nodeId }).then(res => res.data)
 };
 
 export const reportsApi = {
