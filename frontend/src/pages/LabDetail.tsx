@@ -18,7 +18,6 @@ import {
   Layers,
   Sparkles,
   Clock,
-  Calendar,
   Check,
   X,
   ShieldCheck,
@@ -211,20 +210,10 @@ export const LabDetail: React.FC = () => {
           <Layers className="w-4 h-4" />
           <span>Fleet Table List</span>
         </button>
-        <button
-          onClick={() => setTab('schedule')}
-          className={`px-4 py-2.5 border-b-2 transition -mb-px flex items-center gap-2 ${
-            activeTab === 'schedule' ? 'border-blue-600 text-blue-600 font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <Calendar className="w-4 h-4" />
-          <span>Academic Schedule</span>
-        </button>
       </div>
 
       {/* Filter Toolbar (for Seatmap & List) */}
-      {activeTab !== 'schedule' && (
-        <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+      <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
           <div className="relative w-full sm:w-72">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
             <input
@@ -273,7 +262,6 @@ export const LabDetail: React.FC = () => {
             )}
           </div>
         </div>
-      )}
 
       {/* TAB 1: SEAT MAP (Room Layout Grid) */}
       {activeTab === 'seatmap' && (
@@ -432,45 +420,6 @@ export const LabDetail: React.FC = () => {
                 })}
               </tbody>
             </table>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 3: SCHEDULE */}
-      {activeTab === 'schedule' && (
-        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-900">Weekly Laboratory Timetable</h3>
-            <span className="text-xs text-slate-500">Auto-synced with Campus Academic ERP</span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
-            <div className="p-4 rounded-xl bg-blue-50/60 border border-blue-200 space-y-2">
-              <div className="flex justify-between font-bold text-blue-900">
-                <span>CS301: Operating Systems Lab</span>
-                <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Active Now</span>
-              </div>
-              <p className="text-slate-600">Instructor: Dr. Suresh Kumar • Room SJT-418</p>
-              <p className="text-[11px] text-slate-500">14:00 - 16:30 • Mon, Wed</p>
-            </div>
-
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-              <div className="flex justify-between font-bold text-slate-800">
-                <span>CS402: Distributed Systems</span>
-                <span className="text-[10px] text-slate-500">Next Class</span>
-              </div>
-              <p className="text-slate-600">Instructor: Prof. Priya Raman • Room SJT-418</p>
-              <p className="text-[11px] text-slate-500">09:00 - 11:30 • Tue, Thu</p>
-            </div>
-
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-              <div className="flex justify-between font-bold text-slate-800">
-                <span>Open Practical Lab Hours</span>
-                <span className="text-[10px] text-slate-500">Free Practice</span>
-              </div>
-              <p className="text-slate-600">Open Access for Project Work</p>
-              <p className="text-[11px] text-slate-500">16:30 - 19:00 • Daily</p>
-            </div>
           </div>
         </div>
       )}

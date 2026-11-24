@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Building2, Plus, Monitor, Users, CheckCircle2, AlertTriangle, ArrowRight, Clock, PlusCircle } from 'lucide-react';
+import { Building2, Plus, Monitor, Users, CheckCircle2, AlertTriangle, ArrowRight, PlusCircle } from 'lucide-react';
 import { labsApi, fleetApi } from '../services/api';
 import { Breadcrumb } from '../components/common/Breadcrumb';
 
@@ -123,11 +123,6 @@ export const LabsHub: React.FC = () => {
                     <span className="text-emerald-500 block text-[10px]">Free Terminals</span>
                     <span className="font-extrabold text-emerald-700 text-sm">{freeCount}</span>
                   </div>
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2 text-[11px] text-slate-500">
-                  <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                  <span className="truncate">Schedule: General Operating Hours (08:00 - 18:00)</span>
                 </div>
               </div>
 
