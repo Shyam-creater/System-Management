@@ -552,12 +552,12 @@ export const Reports: React.FC = () => {
                               if (val === 'High Load') cellColorClass = 'text-red-600 font-bold';
                               else if (val === 'Optimal') cellColorClass = 'text-emerald-600 font-bold';
                               else cellColorClass = 'text-amber-600 font-bold';
-                            } else if (col.key === 'currentUser') {
+                            } else if (col.key === 'user' || col.key === 'currentUser') {
                               if (val && val !== 'No User' && val !== 'None' && val !== '-') {
                                 cellColorClass = 'text-indigo-700 font-bold';
                               } else {
                                 cellColorClass = 'text-slate-400 italic';
-                                display = 'No User';
+                                display = val || 'No User';
                               }
                             }
 

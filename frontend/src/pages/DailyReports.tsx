@@ -421,7 +421,7 @@ export const DailyReports: React.FC = () => {
                 <thead className="bg-slate-50/70 border-b border-slate-100 text-slate-400 font-semibold text-[11px]">
                   <tr>
                     <th className="p-4">Report Date</th>
-                    <th className="p-4">Current Login User</th>
+                    <th className="p-4">User</th>
                     <th className="p-4">Average CPU</th>
                     <th className="p-4">Peak CPU</th>
                     <th className="p-4">Average GPU</th>
@@ -448,9 +448,9 @@ export const DailyReports: React.FC = () => {
                           <span>{r.report_date}</span>
                         </td>
                         <td className="p-4 font-sans">
-                          {(r.currentUser || r.summary?.currentUser || selectedNode?.currentUser) ? (
+                          {(r.user || r.currentUser || r.summary?.currentUser || selectedNode?.currentUser) ? (
                             <span className="font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100 text-[11px]">
-                              {r.currentUser || r.summary?.currentUser || selectedNode?.currentUser}
+                              {r.user || r.currentUser || r.summary?.currentUser || selectedNode?.currentUser}
                             </span>
                           ) : (
                             <span className="text-slate-400 italic">No User</span>

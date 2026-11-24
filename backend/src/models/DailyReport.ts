@@ -4,6 +4,7 @@ export interface IDailyReport extends Document {
   node_id: string;
   report_date: string;
   hostname: string;
+  user?: string;
   currentUser?: string;
   is_simulated: boolean;
   avg_cpu: number;
@@ -25,6 +26,7 @@ const DailyReportSchema = new Schema<IDailyReport>({
   node_id: { type: String, required: true, index: true },
   report_date: { type: String, required: true, index: true },
   hostname: { type: String, required: true },
+  user: { type: String, default: '' },
   currentUser: { type: String, default: '' },
   is_simulated: { type: Boolean, default: false },
   avg_cpu: { type: Number, default: 0 },

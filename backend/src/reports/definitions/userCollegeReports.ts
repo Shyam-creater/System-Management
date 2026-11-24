@@ -124,7 +124,7 @@ export const C1_Report: ReportConfig = {
   columns: [
     { key: 'rank', label: 'Rank', type: 'number', sortable: true, defaultVisible: true, width: 80 },
     { key: 'lab', label: 'Lab', type: 'text', sortable: true, defaultVisible: true, width: 180 },
-    { key: 'currentUser', label: 'Current Login Users', type: 'text', sortable: true, defaultVisible: true, width: 170 },
+    { key: 'user', label: 'User', type: 'text', sortable: true, defaultVisible: true, width: 170 },
     { key: 'occupancyPct', label: 'Occupancy %', type: 'percent', unit: '%', sortable: true, defaultVisible: true, total: 'avg', width: 120 },
     { key: 'seatHours', label: 'Seat-hours', type: 'number', unit: 'hrs', sortable: true, defaultVisible: true, total: 'sum', width: 120 },
     { key: 'peakConcurrencyPct', label: 'Peak Concurrency %', type: 'percent', unit: '%', sortable: true, defaultVisible: true, total: 'avg', width: 150 },
@@ -170,7 +170,7 @@ export const C1_Report: ReportConfig = {
 
       labRows.push({
         lab: lab.name,
-        currentUser: labDevs.map(d => d.currentUser).filter(Boolean).join(', ') || 'No User',
+        user: labDevs.map(d => d.currentUser).filter(Boolean).join(', ') || 'No User',
         occupancyPct,
         seatHours,
         peakConcurrencyPct: Number(Math.min(100, occupancyPct * 1.35).toFixed(1)),
@@ -229,7 +229,7 @@ export const C2_Report: ReportConfig = {
     { key: 'lab', label: 'Laboratory Name', type: 'text', sortable: true, defaultVisible: true, width: 220 },
     { key: 'systemsCount', label: 'Workstations', type: 'number', sortable: true, defaultVisible: true, total: 'sum', width: 120 },
     { key: 'onlineSystems', label: 'Online Systems', type: 'number', sortable: true, defaultVisible: true, total: 'sum', width: 130 },
-    { key: 'currentUser', label: 'Current Login Users', type: 'text', sortable: true, defaultVisible: true, width: 180 },
+    { key: 'user', label: 'User', type: 'text', sortable: true, defaultVisible: true, width: 180 },
     { key: 'avgCpu', label: 'Avg CPU %', type: 'percent', unit: '%', sortable: true, defaultVisible: true, total: 'avg', width: 110 },
     { key: 'avgRam', label: 'Avg RAM %', type: 'percent', unit: '%', sortable: true, defaultVisible: true, total: 'avg', width: 110 },
     { key: 'avgDisk', label: 'Avg Disk %', type: 'percent', unit: '%', sortable: true, defaultVisible: true, total: 'avg', width: 110 },
@@ -260,7 +260,7 @@ export const C2_Report: ReportConfig = {
         lab: lab.name || labId,
         systemsCount: count,
         onlineSystems: online,
-        currentUser: labDevs.map(d => d.currentUser).filter(Boolean).join(', ') || 'No User',
+        user: labDevs.map(d => d.currentUser).filter(Boolean).join(', ') || 'No User',
         avgCpu,
         avgRam,
         avgDisk,

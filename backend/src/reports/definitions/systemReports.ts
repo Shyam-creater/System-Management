@@ -32,7 +32,7 @@ export const S1_Report: ReportConfig = {
   columns: [
     { key: 'lab', label: 'Lab', type: 'text', sortable: true, defaultVisible: true, width: 170 },
     { key: 'system', label: 'System', type: 'text', sortable: true, defaultVisible: true, width: 140 },
-    { key: 'currentUser', label: 'Current Login User', type: 'text', sortable: true, defaultVisible: true, width: 150 },
+    { key: 'user', label: 'User', type: 'text', sortable: true, defaultVisible: true, width: 140 },
     { key: 'seat', label: 'Seat', type: 'number', sortable: true, defaultVisible: true, width: 80 },
     { key: 'os', label: 'OS', type: 'text', sortable: true, defaultVisible: true, width: 150 },
     { key: 'sessions', label: 'Sessions', type: 'number', sortable: true, defaultVisible: true, total: 'sum', width: 100 },
@@ -114,6 +114,7 @@ export const S1_Report: ReportConfig = {
       rows.push({
         lab: labMap.get(dev.labId) || 'Unassigned',
         system: dev.hostname || dev.node_id,
+        user: dev.currentUser || 'No User',
         currentUser: dev.currentUser || 'No User',
         seat: dev.seat || '-',
         os: dev.system_type || 'Unknown',
@@ -168,7 +169,7 @@ export const S2_Report: ReportConfig = {
     { key: 'timestamp', label: 'Timestamp', type: 'datetime', sortable: true, defaultVisible: true, width: 170 },
     { key: 'lab', label: 'Lab', type: 'text', sortable: true, defaultVisible: true, width: 170 },
     { key: 'system', label: 'System', type: 'text', sortable: true, defaultVisible: true, width: 140 },
-    { key: 'currentUser', label: 'Current Login User', type: 'text', sortable: true, defaultVisible: true, width: 150 },
+    { key: 'user', label: 'User', type: 'text', sortable: true, defaultVisible: true, width: 140 },
     { key: 'cpuPct', label: 'CPU %', type: 'percent', unit: '%', sortable: true, defaultVisible: true, total: 'avg', width: 100 },
     { key: 'ramPct', label: 'RAM %', type: 'percent', unit: '%', sortable: true, defaultVisible: true, total: 'avg', width: 100 },
     { key: 'ramUsedMB', label: 'RAM Used (MB)', type: 'number', unit: 'MB', sortable: true, defaultVisible: true, total: 'avg', width: 130 },
@@ -200,6 +201,7 @@ export const S2_Report: ReportConfig = {
             timestamp: new Date(t.timestamp * 1000),
             lab: labMap.get(dev.labId) || 'Computer Science Lab 1',
             system: dev.hostname || dev.node_id,
+            user: dev.currentUser || 'No User',
             currentUser: dev.currentUser || 'No User',
             cpuPct: Number((t.cpu_percent || 0).toFixed(1)),
             ramPct: Number((t.ram_percent || 0).toFixed(1)),
@@ -218,6 +220,7 @@ export const S2_Report: ReportConfig = {
           timestamp: lastSeenDate,
           lab: labMap.get(dev.labId) || 'Computer Science Lab 1',
           system: dev.hostname || dev.node_id,
+          user: dev.currentUser || 'No User',
           currentUser: dev.currentUser || 'No User',
           cpuPct: Number((dev.cpu_percent || 0).toFixed(1)),
           ramPct: Number((dev.ram_percent || 0).toFixed(1)),
@@ -261,7 +264,7 @@ export const S3_Report: ReportConfig = {
   columns: [
     { key: 'lab', label: 'Lab', type: 'text', sortable: true, defaultVisible: true, width: 170 },
     { key: 'system', label: 'System', type: 'text', sortable: true, defaultVisible: true, width: 140 },
-    { key: 'currentUser', label: 'Current Login User', type: 'text', sortable: true, defaultVisible: true, width: 150 },
+    { key: 'user', label: 'User', type: 'text', sortable: true, defaultVisible: true, width: 140 },
     { key: 'ramTotalMB', label: 'RAM Total (MB)', type: 'number', unit: 'MB', sortable: true, defaultVisible: true, width: 140 },
     { key: 'avgUsedMB', label: 'Avg Used (MB)', type: 'number', unit: 'MB', sortable: true, defaultVisible: true, total: 'avg', width: 130 },
     { key: 'peakUsedMB', label: 'Peak Used (MB)', type: 'number', unit: 'MB', sortable: true, defaultVisible: true, total: 'avg', width: 130 },
@@ -307,6 +310,7 @@ export const S3_Report: ReportConfig = {
       rows.push({
         lab: labMap.get(dev.labId) || 'Unassigned',
         system: dev.hostname || dev.node_id,
+        user: dev.currentUser || 'No User',
         currentUser: dev.currentUser || 'No User',
         ramTotalMB,
         avgUsedMB,
@@ -354,7 +358,7 @@ export const S4_Report: ReportConfig = {
   columns: [
     { key: 'lab', label: 'Lab', type: 'text', sortable: true, defaultVisible: true, width: 170 },
     { key: 'system', label: 'System', type: 'text', sortable: true, defaultVisible: true, width: 140 },
-    { key: 'currentUser', label: 'Current Login User', type: 'text', sortable: true, defaultVisible: true, width: 150 },
+    { key: 'user', label: 'User', type: 'text', sortable: true, defaultVisible: true, width: 140 },
     { key: 'diskTotalGB', label: 'Disk Total (GB)', type: 'number', unit: 'GB', sortable: true, defaultVisible: true, width: 140 },
     { key: 'usedGB', label: 'Used (GB)', type: 'number', unit: 'GB', sortable: true, defaultVisible: true, total: 'sum', width: 120 },
     { key: 'freeGB', label: 'Free (GB)', type: 'number', unit: 'GB', sortable: true, defaultVisible: true, total: 'sum', width: 120 },
@@ -378,6 +382,7 @@ export const S4_Report: ReportConfig = {
       return {
         lab: labMap.get(d.labId) || 'Unassigned',
         system: d.hostname || d.node_id,
+        user: d.currentUser || 'No User',
         currentUser: d.currentUser || 'No User',
         diskTotalGB,
         usedGB,
@@ -420,7 +425,7 @@ export const S5_Report: ReportConfig = {
   columns: [
     { key: 'lab', label: 'Lab', type: 'text', sortable: true, defaultVisible: true, width: 170 },
     { key: 'system', label: 'System', type: 'text', sortable: true, defaultVisible: true, width: 140 },
-    { key: 'currentUser', label: 'Current Login User', type: 'text', sortable: true, defaultVisible: true, width: 150 },
+    { key: 'user', label: 'User', type: 'text', sortable: true, defaultVisible: true, width: 140 },
     { key: 'software', label: 'Software Package', type: 'text', sortable: true, defaultVisible: true, width: 220 },
     { key: 'version', label: 'Version', type: 'text', sortable: true, defaultVisible: true, width: 130 },
     { key: 'publisher', label: 'Publisher', type: 'text', sortable: true, defaultVisible: true, width: 180 },
@@ -453,6 +458,7 @@ export const S5_Report: ReportConfig = {
         rows.push({
           lab: labMap.get(dev.labId) || 'Unassigned',
           system: dev.hostname || inv.node_id,
+          user: dev.currentUser || 'No User',
           currentUser: dev.currentUser || 'No User',
           software: p.name,
           version: p.version || '1.0.0',
@@ -474,6 +480,7 @@ export const S5_Report: ReportConfig = {
               rows.push({
                 lab: labMap.get(dev.labId) || 'Computer Science Lab 1',
                 system: dev.hostname || dev.node_id,
+                user: dev.currentUser || 'No User',
                 currentUser: dev.currentUser || 'No User',
                 software: p.name,
                 version: p.version || '1.0',
@@ -520,8 +527,8 @@ export const S6_Report: ReportConfig = {
   columns: [
     { key: 'lab', label: 'Lab', type: 'text', sortable: true, defaultVisible: true, width: 170 },
     { key: 'system', label: 'System', type: 'text', sortable: true, defaultVisible: true, width: 140 },
-    { key: 'currentUser', label: 'Current Login User', type: 'text', sortable: true, defaultVisible: true, width: 150 },
-    { key: 'process', label: 'Process', type: 'text', sortable: true, defaultVisible: true, width: 180 },
+    { key: 'process', label: 'Process Name', type: 'text', sortable: true, defaultVisible: true, width: 180 },
+    { key: 'user', label: 'User', type: 'text', sortable: true, defaultVisible: true, width: 140 },
     { key: 'avgCpu', label: 'Avg CPU %', type: 'percent', unit: '%', sortable: true, defaultVisible: true, total: 'avg', width: 120 },
     { key: 'gpuPct', label: 'GPU %', type: 'percent', unit: '%', sortable: true, defaultVisible: true, total: 'avg', width: 110 },
     { key: 'avgMemMB', label: 'Avg Memory (MB)', type: 'number', unit: 'MB', sortable: true, defaultVisible: true, total: 'avg', width: 150 },
@@ -543,7 +550,7 @@ export const S6_Report: ReportConfig = {
     const endSec = Math.floor(endDate.getTime() / 1000);
     const rollups = await hourlyRollupRepository.findByRange('system', devices.map(d => d.node_id), startSec, endSec);
 
-    const procMap = new Map<string, { labId: string; system: string; currentUser: string; process: string; cpuSum: number; memSum: number; peakMem: number; count: number }>();
+    const procMap = new Map<string, { labId: string; system: string; user: string; process: string; cpuSum: number; memSum: number; peakMem: number; count: number }>();
 
     for (const r of rollups) {
       const dev = devMap.get(r.refId);
@@ -557,8 +564,8 @@ export const S6_Report: ReportConfig = {
           entry = {
             labId: dev.labId,
             system: dev.hostname || r.refId,
-            currentUser: dev.currentUser || 'No User',
             process: p.name,
+            user: (p as any).user || dev.currentUser || 'SYSTEM',
             cpuSum: 0,
             memSum: 0,
             peakMem: 0,
@@ -578,8 +585,9 @@ export const S6_Report: ReportConfig = {
       rows.push({
         lab: labMap.get(val.labId) || 'Unassigned',
         system: val.system,
-        currentUser: val.currentUser,
         process: val.process,
+        user: val.user,
+        currentUser: val.user,
         avgCpu: Number((val.cpuSum / val.count).toFixed(1)),
         gpuPct: 0,
         avgMemMB: Math.round(val.memSum / val.count),
@@ -604,8 +612,9 @@ export const S6_Report: ReportConfig = {
           rows.push({
             lab: labMap.get(dev.labId) || 'Computer Science Lab 1',
             system: dev.hostname || dev.node_id,
-            currentUser: dev.currentUser || 'No User',
             process: p.name || 'system_worker',
+            user: p.user || dev.currentUser || 'SYSTEM',
+            currentUser: p.user || dev.currentUser || 'SYSTEM',
             avgCpu: Number((p.cpu_percent || 0.5).toFixed(1)),
             gpuPct: Number((p.gpu_percent !== undefined ? p.gpu_percent : (dev.gpu_percent || 0)).toFixed(1)),
             avgMemMB: Math.round(p.memory_mb || 64),
@@ -648,7 +657,7 @@ export const S7_Report: ReportConfig = {
   columns: [
     { key: 'lab', label: 'Lab', type: 'text', sortable: true, defaultVisible: true, width: 170 },
     { key: 'system', label: 'System', type: 'text', sortable: true, defaultVisible: true, width: 140 },
-    { key: 'currentUser', label: 'Current Login User', type: 'text', sortable: true, defaultVisible: true, width: 150 },
+    { key: 'user', label: 'User', type: 'text', sortable: true, defaultVisible: true, width: 140 },
     { key: 'seat', label: 'Seat', type: 'number', sortable: true, defaultVisible: true, width: 80 },
     { key: 'os', label: 'OS', type: 'text', sortable: true, defaultVisible: true, width: 150 },
     { key: 'cpuModel', label: 'CPU Model', type: 'text', sortable: true, defaultVisible: true, width: 230 },
@@ -670,6 +679,7 @@ export const S7_Report: ReportConfig = {
     const rows = devices.map(d => ({
       lab: labMap.get(d.labId) || 'Unassigned',
       system: d.hostname || d.node_id,
+      user: d.currentUser || 'No User',
       currentUser: d.currentUser || 'No User',
       seat: d.seat || '-',
       os: d.system_type || 'Unknown',
@@ -716,7 +726,7 @@ export const S8_Report: ReportConfig = {
   columns: [
     { key: 'lab', label: 'Lab', type: 'text', sortable: true, defaultVisible: true, width: 170 },
     { key: 'system', label: 'System', type: 'text', sortable: true, defaultVisible: true, width: 140 },
-    { key: 'currentUser', label: 'Current Login User', type: 'text', sortable: true, defaultVisible: true, width: 150 },
+    { key: 'user', label: 'User', type: 'text', sortable: true, defaultVisible: true, width: 140 },
     { key: 'uptimePct', label: 'Uptime %', type: 'percent', unit: '%', sortable: true, defaultVisible: true, total: 'avg', width: 120 },
     { key: 'downtimeMin', label: 'Downtime (min)', type: 'duration', unit: 'min', sortable: true, defaultVisible: true, total: 'sum', width: 140 },
     { key: 'outages', label: 'Outages', type: 'number', sortable: true, defaultVisible: true, total: 'sum', width: 100 },
@@ -743,6 +753,7 @@ export const S8_Report: ReportConfig = {
       return {
         lab: labMap.get(d.labId) || 'Unassigned',
         system: d.hostname || d.node_id,
+        user: d.currentUser || 'No User',
         currentUser: d.currentUser || 'No User',
         uptimePct,
         downtimeMin,
@@ -783,7 +794,7 @@ export const S9_Report: ReportConfig = {
   filters: ['lab', 'system', 'faultStatus'],
   columns: [
     { key: 'system', label: 'System', type: 'text', sortable: true, defaultVisible: true, width: 140 },
-    { key: 'currentUser', label: 'Current Login User', type: 'text', sortable: true, defaultVisible: true, width: 150 },
+    { key: 'user', label: 'User', type: 'text', sortable: true, defaultVisible: true, width: 140 },
     { key: 'lab', label: 'Lab', type: 'text', sortable: true, defaultVisible: true, width: 170 },
     { key: 'issue', label: 'Issue Description', type: 'text', sortable: true, defaultVisible: true, width: 280 },
     { key: 'status', label: 'Status', type: 'text', sortable: true, defaultVisible: true, width: 120 },
@@ -810,6 +821,7 @@ export const S9_Report: ReportConfig = {
 
     const rows = filtered.map(f => ({
       system: f.hostname || f.nodeId,
+      user: devMap.get(f.nodeId)?.currentUser || 'No User',
       currentUser: devMap.get(f.nodeId)?.currentUser || 'No User',
       lab: labMap.get(f.labId) || 'General Fleet',
       issue: f.issue,

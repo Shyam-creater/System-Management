@@ -1353,7 +1353,6 @@ export const Labs: React.FC = () => {
                   <tr>
                     <th className="py-2.5 px-3">PID</th>
                     <th className="py-2.5 px-3">Workstation</th>
-                    <th className="py-2.5 px-3">Current Login User</th>
                     <th className="py-2.5 px-3">Process Name</th>
                     <th className="py-2.5 px-3">User</th>
                     <th className="py-2.5 px-3">Category</th>
@@ -1366,7 +1365,7 @@ export const Labs: React.FC = () => {
                 <tbody className="divide-y divide-slate-100 font-mono text-[11px] text-slate-700">
                   {displayProcesses.length === 0 ? (
                     <tr>
-                      <td colSpan={10} className="py-12 text-center text-slate-400 font-sans">
+                      <td colSpan={9} className="py-12 text-center text-slate-400 font-sans">
                         No active processes matching the selected filters.
                       </td>
                     </tr>
@@ -1388,20 +1387,11 @@ export const Labs: React.FC = () => {
                               </span>
                             )}
                           </td>
-                          <td className="py-2.5 px-3 font-sans">
-                            {p.currentUser && p.currentUser !== 'No User' ? (
-                              <span className="font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100 text-[11px]">
-                                {p.currentUser}
-                              </span>
-                            ) : (
-                              <span className="text-slate-400 italic">No User</span>
-                            )}
-                          </td>
                           <td className="py-2.5 px-3 font-sans font-medium text-slate-900 flex items-center gap-2">
                             <ProcessIcon name={p.name} size={16} />
                             <span className="font-semibold truncate max-w-[200px]" title={p.name}>{p.name}</span>
                           </td>
-                          <td className="py-2.5 px-3 text-slate-500 font-sans">{p.user}</td>
+                          <td className="py-2.5 px-3 text-slate-500 font-sans">{p.user || p.currentUser || 'SYSTEM'}</td>
                           <td className="py-2.5 px-3 font-sans">
                             <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
                               p.is_user_app ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-slate-100 text-slate-600'
@@ -1540,7 +1530,7 @@ export const Labs: React.FC = () => {
                     <tr>
                       <th className="py-2.5 px-3">Date</th>
                       <th className="py-2.5 px-3">Workstation</th>
-                      <th className="py-2.5 px-3">Current Login User</th>
+                      <th className="py-2.5 px-3">User</th>
                       <th className="py-2.5 px-3">Avg CPU</th>
                       <th className="py-2.5 px-3">Peak CPU</th>
                       <th className="py-2.5 px-3">Avg GPU</th>
@@ -1569,9 +1559,9 @@ export const Labs: React.FC = () => {
                             </div>
                           </td>
                           <td className="py-2.5 px-3 font-sans">
-                            {(m?.currentUser || r.currentUser || r.summary?.currentUser) && (m?.currentUser || r.currentUser || r.summary?.currentUser) !== 'No User' ? (
+                            {(m?.currentUser || r.user || r.currentUser || r.summary?.currentUser) && (m?.currentUser || r.user || r.currentUser || r.summary?.currentUser) !== 'No User' ? (
                               <span className="font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100 text-[11px]">
-                                {m?.currentUser || r.currentUser || r.summary?.currentUser}
+                                {m?.currentUser || r.user || r.currentUser || r.summary?.currentUser}
                               </span>
                             ) : (
                               <span className="text-slate-400 italic">No User</span>
