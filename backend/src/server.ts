@@ -10,6 +10,7 @@ import { startSessionSweeper, setLabsIo } from './labs.js';
 import { setCommandsIo } from './commands.js';
 import { setPoliciesIo } from './policies.js';
 import { setSchedulesIo, startSchedulerTicker } from './schedules.js';
+import { initUsbGuardSockets } from './sockets/usbGuard.js';
 import { logger } from './utils/logger.js';
 
 const server = http.createServer(app);
@@ -20,6 +21,7 @@ setLabsIo(io);
 setCommandsIo(io);
 setPoliciesIo(io);
 setSchedulesIo(io);
+initUsbGuardSockets(io);
 
 // Start Server Function
 async function startServer() {

@@ -19,6 +19,7 @@ import { faultRepository } from '../../repositories/faultRepository.js';
 import { processRepository } from '../../repositories/processRepository.js';
 import { telemetryRepository } from '../../repositories/telemetryRepository.js';
 import { softwareService } from '../../services/softwareService.js';
+import { usbEventRepo } from '../../models/UsbEvent.js';
 
 // ==========================================
 // S1: SYSTEM UTILIZATION
@@ -844,6 +845,79 @@ export const S9_Report: ReportConfig = {
 
     return {
       columns: S9_Report.columns,
+      rows: pagedRows,
+      total: rows.length,
+      totals,
+      summary,
+      charts: [],
+      resolution: 'raw'
+    };
+  }
+};
+
+// ==========================================
+// USB: USB ACTIVITY & HARDWARE SECURITY REPORT
+// ==========================================
+export const USB_Report: ReportConfig = {
+  id: 'USB',
+  title: 'USB Activity & Hardware Audit',
+  category: 'system',
+  description: 'Chronological event log of USB storage devices plugged into workstations, screen blank actions, and unlock history.',
+  filters: ['dateRange', 'lab', 'system', 'user'],
+  columns: [
+    { key: 'time', label: 'Time', type: 'datetime', sortable: true, defaultVisible: true, width: 170 },
+    { key: 'lab', label: 'Lab', type: 'text', sortable: true, defaultVisible: true, width: 150 },
+    { key: 'computer', label: 'Computer', type: 'text', sortable: true, defaultVisible: true, width: 160 },
+    { key: 'user', label: 'User', type: 'text', sortable: true, defaultVisible: true, width: 130 },
+    { key: 'device', label: 'Device', type: 'text', sortable: true, defaultVisible: true, width: 180 },
+    { key: 'serial', label: 'Serial', type: 'text', sortable: true, defaultVisible: true, width: 140 },
+    { key: 'action', label: 'Action', type: 'text', sortable: true, defaultVisible: true, width: 120 },
+    { key: 'unlockedBy', label: 'Unlocked by', type: 'text', sortable: true, defaultVisible: true, width: 130 }
+  ],
+  defaultSort: [{ key: 'time', dir: 'desc' }],
+  query: async (filters, sort, page, pageSize, columnsToReturn, scope): Promise<QueryResult> => {
+    const { startDate, endDate } = parseDateRange(filters.dateRange);
+    const labs = await getScopedLabs(scope, filters.labs);
+    const labMap = new Map<string, string>();
+    labs.forEach(l => labMap.set(l.id || (l as any)._id?.toString(), l.name));
+
+    const rawEvents = await usbEventRepo.find({
+      from: startDate.toISOString(),
+      to: endDate.toISOString(),
+      limit: 500
+    });
+
+    let filtered = rawEvents.filter(e => {
+      if (filters.labs && filters.labs.length > 0 && e.labId && !filters.labs.includes(e.labId)) return false;
+      if (filters.systems && filters.systems.length > 0 && !filters.systems.includes(e.nodeId)) return false;
+      if (filters.user && e.user && !e.user.toLowerCase().includes(filters.user.toLowerCase())) return false;
+      return true;
+    });
+
+    const rows = filtered.map(e => ({
+      time: e.insertedAt ? new Date(e.insertedAt).toLocaleString() : new Date().toLocaleString(),
+      lab: labMap.get(e.labId) || 'CS Lab 1',
+      computer: e.nodeId,
+      user: e.user || 'No User',
+      currentUser: e.user || 'No User',
+      device: [e.vendor, e.model].filter(Boolean).join(' ') || e.label || 'Removable USB Storage',
+      serial: e.serial || '—',
+      action: e.action === 'lock' ? 'Screen Locked' : e.action === 'alert' ? 'Alert Raised' : 'Allowed / Info',
+      unlockedBy: e.unlockedBy || (e.action === 'lock' ? (e.unlockedAt ? 'Staff' : 'Still Locked') : '—')
+    }));
+
+    const totals = computeTotals(rows, USB_Report.columns);
+    const sortedRows = applyMultiSort(rows, sort.length > 0 ? sort : USB_Report.defaultSort);
+    const pagedRows = paginateRows(sortedRows, page, pageSize);
+
+    const summary: KPIItem[] = [
+      { id: 'total_events', label: 'Total USB Insertions', value: rows.length, unit: '', color: '#3b82f6' },
+      { id: 'screen_locks', label: 'Screen Locks Triggered', value: rows.filter(r => r.action === 'Screen Locked').length, unit: '', color: '#ef4444' },
+      { id: 'allowed_devices', label: 'Staff Whitelisted Devices', value: rows.filter(r => r.action.includes('Allowed')).length, unit: '', color: '#10b981' }
+    ];
+
+    return {
+      columns: USB_Report.columns,
       rows: pagedRows,
       total: rows.length,
       totals,

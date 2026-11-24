@@ -41,6 +41,12 @@ try:
 except ImportError:
     start_policy_enforcer_thread = None
 
+# Import USB Guard for Hardware & Screen Protection
+try:
+    from usb_guard_agent import start_usb_guard_thread
+except ImportError:
+    start_usb_guard_thread = None
+
 DEFAULT_AUTH_KEY = "ProcessShield-OS-2026"
 DEFAULT_INTERVAL = 5
 
@@ -447,6 +453,11 @@ def main():
     if start_policy_enforcer_thread:
         print(f" [*] Launching Process Policy Enforcer for '{node_id}'...")
         start_policy_enforcer_thread(server_url=target_server, node_id=node_id, is_simulated=False, interval=args.interval)
+
+    # Start USB Guard Hardware & Screen Protection thread
+    if start_usb_guard_thread:
+        print(f" [*] Launching USB Guard Guardian for '{node_id}'...")
+        start_usb_guard_thread(server_url=target_server, node_id=node_id, api_key=args.key)
 
     consecutive_failures = 0
 

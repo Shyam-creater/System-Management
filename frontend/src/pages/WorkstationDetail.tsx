@@ -41,6 +41,8 @@ import { fleetApi, softwareApi, sessionsApi, controllerApi } from '../services/a
 import { Breadcrumb } from '../components/common/Breadcrumb';
 import { ProcessIcon } from '../components/common/ProcessIcon';
 import { PlatformIcon } from '../components/common/PlatformIcon';
+import { UsbSeatBadge } from '../components/usb/UsbSeatBadge';
+import { UnlockButton } from '../components/usb/UnlockButton';
 
 export const WorkstationDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -175,6 +177,7 @@ export const WorkstationDetail: React.FC = () => {
           <div>
             <div className="flex items-center gap-2.5 flex-wrap">
               <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">{node?.hostname || decodedNodeId}</h1>
+              <UsbSeatBadge locked={node?.usbLocked} />
               <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold ${
                 isOnline ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
               }`}>
@@ -205,6 +208,16 @@ export const WorkstationDetail: React.FC = () => {
 
         {/* Quick Header Controls */}
         <div className="flex items-center gap-2 shrink-0">
+          {node?.usbLocked && (
+            <UnlockButton
+              nodeId={node.node_id}
+              onDone={() => {
+                setActionFeedback('Workstation screen unlocked.');
+                setTimeout(() => setActionFeedback(null), 3000);
+                queryClient.invalidateQueries({ queryKey: ['nodes'] });
+              }}
+            />
+          )}
           <button
             onClick={() => {
               setActionFeedback('Signal sent to workstation: Screen Lock engaged.');
@@ -227,6 +240,31 @@ export const WorkstationDetail: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* USB Guard Critical Warning Banner */}
+      {node?.usbLocked && (
+        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-rose-200/80 text-rose-800 shrink-0">
+              <ShieldAlert className="w-5 h-5 text-rose-700" />
+            </div>
+            <div>
+              <h4 className="font-extrabold text-sm text-rose-950">USB Storage Detected — Workstation Screen Blanked</h4>
+              <p className="text-xs text-rose-700 mt-0.5">
+                Unauthorized USB device was plugged into this machine. The screen is held in a full-screen lock overlay. Ensure the device is unplugged before unlocking.
+              </p>
+            </div>
+          </div>
+          <UnlockButton
+            nodeId={node.node_id}
+            onDone={() => {
+              setActionFeedback('Workstation screen unlocked successfully.');
+              setTimeout(() => setActionFeedback(null), 3000);
+              queryClient.invalidateQueries({ queryKey: ['nodes'] });
+            }}
+          />
+        </div>
+      )}
 
       {/* Unified 6-Tab Navigation */}
       <div className="border-b border-slate-200 flex items-center gap-2 overflow-x-auto text-xs font-bold scrollbar-none">

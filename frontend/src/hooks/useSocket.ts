@@ -21,6 +21,17 @@ export const useSocket = () => {
       queryClient.invalidateQueries({ queryKey: ['alerts'] });
     });
 
+    socket.on('usb:event', (msg: any) => {
+      queryClient.invalidateQueries({ queryKey: ['nodes'] });
+      queryClient.invalidateQueries({ queryKey: ['alerts'] });
+      queryClient.invalidateQueries({ queryKey: ['usb-events'] });
+    });
+
+    socket.on('alert:new', (alert: any) => {
+      queryClient.invalidateQueries({ queryKey: ['alerts'] });
+      queryClient.invalidateQueries({ queryKey: ['nodes'] });
+    });
+
     return () => {
       // Keep socket open across component mount/unmount
     };

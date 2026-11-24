@@ -5,6 +5,8 @@ import { Monitor, Search, Filter, Cpu, HardDrive, ArrowRight, CheckCircle2, Aler
 import { fleetApi, labsApi } from '../services/api';
 import { PlatformIcon } from '../components/common/PlatformIcon';
 import { Breadcrumb } from '../components/common/Breadcrumb';
+import { UsbSeatBadge } from '../components/usb/UsbSeatBadge';
+import { UnlockButton } from '../components/usb/UnlockButton';
 
 export const Workstations: React.FC = () => {
   const navigate = useNavigate();
@@ -169,12 +171,17 @@ export const Workstations: React.FC = () => {
                         </div>
                       </td>
                       <td className="py-3 px-4 font-sans">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          isOnline ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-                          {isOnline ? 'ONLINE' : 'OFFLINE'}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <UsbSeatBadge locked={node.usbLocked} />
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            node.usbLocked
+                              ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                              : isOnline ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${node.usbLocked ? 'bg-rose-600 animate-ping' : isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                            {node.usbLocked ? 'LOCKED' : isOnline ? 'ONLINE' : 'OFFLINE'}
+                          </span>
+                        </div>
                       </td>
                       <td className="py-3 px-4 font-sans">
                         {node.currentUser && node.currentUser !== 'No User' ? (
@@ -201,10 +208,21 @@ export const Workstations: React.FC = () => {
                         {node.system_type || 'Ubuntu Linux'}
                       </td>
                       <td className="py-3 px-4 text-right font-sans">
-                        <span className="text-blue-600 font-bold hover:underline inline-flex items-center gap-1">
-                          <span>Inspect</span>
-                          <ArrowRight className="w-3 h-3" />
-                        </span>
+                        <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                          {node.usbLocked && (
+                            <UnlockButton
+                              nodeId={node.node_id}
+                              onDone={() => refetch()}
+                            />
+                          )}
+                          <span
+                            onClick={() => navigate(`/workstations/${encodeURIComponent(node.node_id)}`)}
+                            className="text-blue-600 font-bold hover:underline inline-flex items-center gap-1 cursor-pointer"
+                          >
+                            <span>Inspect</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </span>
+                        </div>
                       </td>
                     </tr>
                   );

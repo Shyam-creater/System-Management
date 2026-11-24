@@ -10,6 +10,7 @@ import { commandsRouter } from './commands.js';
 import { policiesRouter } from './policies.js';
 import { schedulesRouter } from './schedules.js';
 import { reportsRouter } from './reports/routes.js';
+import { usbRouter } from './routes/usbRoutes.js';
 import { optionalAdminAuth } from './middleware/auth.js';
 import { env } from './config/env.js';
 import { logger } from './utils/logger.js';
@@ -61,6 +62,7 @@ app.use('/api', labsRouter);
 app.use('/api', commandsRouter);
 app.use('/api', policiesRouter);
 app.use('/api', schedulesRouter);
+app.use('/api/usb', usbRouter);
 app.use('/api/reports', optionalAdminAuth, reportsRouter);
 
 // Serve Static Frontend if built in production

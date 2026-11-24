@@ -10,7 +10,8 @@ import {
   S3_Report,
   S5_Report,
   S6_Report,
-  S7_Report
+  S7_Report,
+  USB_Report
 } from './definitions/systemReports.js';
 import {
   C2_Report
@@ -50,6 +51,9 @@ class ReportRegistry {
 
     // 10. Lab Comparison
     this.register(C2_Report);
+
+    // 11. USB Activity & Hardware Protection
+    this.register(USB_Report);
   }
 
   public register(report: ReportConfig) {

@@ -279,7 +279,8 @@ export const ReportsCenter: React.FC = () => {
       color: 'text-amber-600 bg-amber-50 border-amber-100',
       description: 'System faults, threshold alerts, security warnings, and incident logs.',
       reports: [
-        { id: 'L7', name: 'Alerts & Incidents', desc: 'Log of critical thresholds, offline incidents, and resolutions.' }
+        { id: 'L7', name: 'Alerts & Incidents', desc: 'Log of critical thresholds, offline incidents, and resolutions.' },
+        { id: 'USB', name: 'USB Activity & Hardware Protection', desc: 'Chronological log of USB storage devices inserted into workstations, screen blanking actions, and staff unlock history.' }
       ]
     },
     {
@@ -367,6 +368,12 @@ export const ReportsCenter: React.FC = () => {
               className="px-3 py-1.5 rounded-lg bg-cyan-50 hover:bg-cyan-100 text-cyan-700 text-xs font-semibold border border-cyan-200/60 transition"
             >
               Lab Comparison (C2)
+            </button>
+            <button
+              onClick={() => navigate('/reports/USB')}
+              className="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold border border-rose-200/60 transition"
+            >
+              🔒 USB Activity
             </button>
           </div>
         </div>

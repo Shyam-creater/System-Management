@@ -124,6 +124,24 @@ export class DeviceRepository {
     return true;
   }
 
+  async findStaleGuards(cutoff: Date): Promise<any[]> {
+    if (isDatabaseConnected()) {
+      try {
+        return await Device.find({
+          guardLastBeat: { $lt: cutoff },
+          guardAlerted: { $ne: true }
+        }).lean();
+      } catch {}
+    }
+    const results: any[] = [];
+    for (const dev of memoryDevices.values()) {
+      if (dev.guardLastBeat && new Date(dev.guardLastBeat) < cutoff && !dev.guardAlerted) {
+        results.push(dev);
+      }
+    }
+    return results;
+  }
+
   async count(): Promise<number> {
     if (isDatabaseConnected()) {
       try {

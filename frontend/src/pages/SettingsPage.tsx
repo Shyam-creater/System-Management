@@ -20,10 +20,12 @@ import {
   Square,
   AlertTriangle,
   Radio,
-  Network
+  Network,
+  Lock
 } from 'lucide-react';
 import { fleetApi, simulatorApi } from '../services/api';
 import { PageHeader } from '../components/layout/PageHeader';
+import { UsbPolicyPanel } from './settings/UsbPolicyPanel';
 
 export const SettingsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -110,6 +112,21 @@ export const SettingsPage: React.FC = () => {
         >
           <Shield className="w-4 h-4" />
           <span>Alert Rules & Thresholds</span>
+        </button>
+
+        <button
+          onClick={() => handleTabChange('usb')}
+          className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 whitespace-nowrap transition ${
+            activeTab === 'usb'
+              ? 'border-rose-600 text-rose-600'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Lock className="w-4 h-4" />
+          <span>USB Guard & Screen Lock</span>
+          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700">
+            PROTECTION
+          </span>
         </button>
 
         <button
@@ -328,6 +345,20 @@ export const SettingsPage: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* USB Guard Policy Panel */}
+          <div className="pt-6 border-t border-slate-200/80">
+            <UsbPolicyPanel />
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB: USB GUARD & HARDWARE PROTECTION */}
+      {/* ========================================================================= */}
+      {activeTab === 'usb' && (
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-6">
+          <UsbPolicyPanel />
         </div>
       )}
 

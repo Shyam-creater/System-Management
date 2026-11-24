@@ -28,6 +28,11 @@ export interface IDevice extends Document {
   labId?: string | null;
   seat?: number | null;
   currentUser?: string | null;
+  usbLocked?: boolean;
+  usbLockedAt?: Date | null;
+  usbPendingCmd?: 'unlock' | 'lock' | null;
+  guardLastBeat?: Date | null;
+  guardAlerted?: boolean;
 }
 
 const DeviceSchema = new Schema<IDevice>({
@@ -57,7 +62,12 @@ const DeviceSchema = new Schema<IDevice>({
   process_count: { type: Number, default: 0 },
   labId: { type: String, default: null, index: true },
   seat: { type: Number, default: null },
-  currentUser: { type: String, default: null }
+  currentUser: { type: String, default: null },
+  usbLocked: { type: Boolean, default: false },
+  usbLockedAt: { type: Date, default: null },
+  usbPendingCmd: { type: String, enum: ['unlock', 'lock', null], default: null },
+  guardLastBeat: { type: Date, default: null },
+  guardAlerted: { type: Boolean, default: false }
 }, {
   timestamps: true,
   collection: 'devices'

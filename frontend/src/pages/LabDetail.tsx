@@ -26,13 +26,16 @@ import {
   Cpu,
   Zap,
   ExternalLink,
-  User
+  User,
+  ShieldAlert
 } from 'lucide-react';
 import { labsApi, fleetApi, commandsApi } from '../services/api';
 import { Breadcrumb } from '../components/common/Breadcrumb';
 import { SideDrawer } from '../components/common/SideDrawer';
 import { PlatformIcon } from '../components/common/PlatformIcon';
 import { AddComputerModal } from '../components/modals/AddComputerModal';
+import { UsbSeatBadge } from '../components/usb/UsbSeatBadge';
+import { UnlockButton } from '../components/usb/UnlockButton';
 
 export const LabDetail: React.FC = () => {
   const { labId } = useParams<{ labId: string }>();
@@ -364,11 +367,13 @@ export const LabDetail: React.FC = () => {
                   className={`p-4 rounded-2xl border text-left transition-all duration-200 relative cursor-pointer group flex flex-col justify-between hover:-translate-y-0.5 ${
                     isSelected
                       ? 'bg-blue-50/90 border-blue-500 ring-2 ring-blue-500 shadow-md'
-                      : isOnline
-                        ? hasUser
-                          ? 'bg-white border-indigo-200/90 hover:border-indigo-500 hover:shadow-lg shadow-xs'
-                          : 'bg-white border-slate-200/90 hover:border-blue-500 hover:shadow-lg shadow-xs'
-                        : 'bg-slate-50/80 border-slate-200 opacity-60 hover:opacity-100 hover:border-slate-300'
+                      : node.usbLocked
+                        ? 'bg-rose-50/40 border-rose-400 ring-2 ring-rose-500/20 shadow-md'
+                        : isOnline
+                          ? hasUser
+                            ? 'bg-white border-indigo-200/90 hover:border-indigo-500 hover:shadow-lg shadow-xs'
+                            : 'bg-white border-slate-200/90 hover:border-blue-500 hover:shadow-lg shadow-xs'
+                          : 'bg-slate-50/80 border-slate-200 opacity-60 hover:opacity-100 hover:border-slate-300'
                   }`}
                 >
                   {/* Top Bar: Seat Number + Platform + Status */}
@@ -392,20 +397,25 @@ export const LabDetail: React.FC = () => {
                         <PlatformIcon platform={node.system_type} hostname={node.hostname} size={15} />
                       </div>
 
-                      <span
-                        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          isOnline
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : 'bg-rose-50 text-rose-700 border border-rose-200'
-                        }`}
-                      >
+                      <div className="flex items-center gap-1.5">
+                        <UsbSeatBadge locked={node.usbLocked} />
                         <span
-                          className={`w-1.5 h-1.5 rounded-full ${
-                            isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
+                          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            node.usbLocked
+                              ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                              : isOnline
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : 'bg-rose-50 text-rose-700 border border-rose-200'
                           }`}
-                        />
-                        {isOnline ? 'ONLINE' : 'OFFLINE'}
-                      </span>
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              node.usbLocked ? 'bg-rose-600 animate-ping' : isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
+                            }`}
+                          />
+                          {node.usbLocked ? 'LOCKED' : isOnline ? 'ONLINE' : 'OFFLINE'}
+                        </span>
+                      </div>
                     </div>
 
                     {/* System Identity & Active User */}
@@ -559,8 +569,20 @@ export const LabDetail: React.FC = () => {
 
                   {/* Card Action Hint */}
                   <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] font-bold text-blue-600 group-hover:text-blue-700">
-                    <span>Open Workstation</span>
-                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition" />
+                    {node.usbLocked ? (
+                      <div className="w-full" onClick={(e) => e.stopPropagation()}>
+                        <UnlockButton
+                          nodeId={node.node_id}
+                          className="w-full justify-center"
+                          onDone={() => queryClient.invalidateQueries({ queryKey: ['nodes'] })}
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        <span>Open Workstation</span>
+                        <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition" />
+                      </>
+                    )}
                   </div>
                 </div>
               );
@@ -576,6 +598,10 @@ export const LabDetail: React.FC = () => {
             <span className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" />
               <span>In Use by Student</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
+              <span>USB Locked</span>
             </span>
             <span className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-slate-300" />
@@ -619,12 +645,17 @@ export const LabDetail: React.FC = () => {
                       <td className="py-2.5 px-3 font-bold text-slate-500">#{node.seat || i + 1}</td>
                       <td className="py-2.5 px-3 font-sans font-bold text-slate-900">{node.hostname}</td>
                       <td className="py-2.5 px-3 font-sans">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          isOnline ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-                          {isOnline ? 'ONLINE' : 'OFFLINE'}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <UsbSeatBadge locked={node.usbLocked} />
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            node.usbLocked
+                              ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                              : isOnline ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${node.usbLocked ? 'bg-rose-600 animate-ping' : isOnline ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                            {node.usbLocked ? 'LOCKED' : isOnline ? 'ONLINE' : 'OFFLINE'}
+                          </span>
+                        </div>
                       </td>
                       <td className="py-2.5 px-3 font-sans">
                         {node.currentUser && node.currentUser !== 'No User' ? (
@@ -638,15 +669,22 @@ export const LabDetail: React.FC = () => {
                       <td className="py-2.5 px-3 font-bold text-slate-900">{(node.cpu_percent || 0).toFixed(1)}%</td>
                       <td className="py-2.5 px-3 font-bold text-slate-900">{(node.ram_percent || 0).toFixed(1)}%</td>
                       <td className="py-2.5 px-3 text-right font-sans">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/workstations/${encodeURIComponent(node.node_id)}`);
-                          }}
-                          className="text-blue-600 font-bold hover:underline"
-                        >
-                          Details →
-                        </button>
+                        <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                          {node.usbLocked && (
+                            <UnlockButton
+                              nodeId={node.node_id}
+                              onDone={() => queryClient.invalidateQueries({ queryKey: ['nodes'] })}
+                            />
+                          )}
+                          <button
+                            onClick={() => {
+                              navigate(`/workstations/${encodeURIComponent(node.node_id)}`);
+                            }}
+                            className="text-blue-600 font-bold hover:underline"
+                          >
+                            Details →
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -728,6 +766,30 @@ export const LabDetail: React.FC = () => {
       >
         {selectedSeatDrawerNode && (
           <div className="space-y-5 text-xs">
+            {/* USB Guard Lock Warning Banner */}
+            {selectedSeatDrawerNode.usbLocked && (
+              <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 space-y-2.5 animate-fadeIn">
+                <div className="flex items-start gap-2.5">
+                  <ShieldAlert className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                  <div>
+                    <h5 className="font-extrabold text-xs text-rose-950">USB Storage Detected — Screen Blocked</h5>
+                    <p className="text-[11px] text-rose-700 mt-0.5 leading-relaxed">
+                      This workstation's screen has been blanked with an overlay. Please inspect the workstation and ensure the student has unplugged the USB pendrive before unlocking.
+                    </p>
+                  </div>
+                </div>
+                <div className="pt-2 border-t border-rose-200/80 flex items-center justify-end">
+                  <UnlockButton
+                    nodeId={selectedSeatDrawerNode.node_id}
+                    onDone={() => {
+                      queryClient.invalidateQueries({ queryKey: ['nodes'] });
+                      setSelectedSeatDrawerNode((prev: any) => prev ? { ...prev, usbLocked: false } : null);
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* User Chip */}
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
               <div>

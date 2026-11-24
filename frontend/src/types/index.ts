@@ -42,6 +42,9 @@ export interface NodeInfo {
   labId?: string | null;
   seat?: number | null;
   currentUser?: string | null;
+  usbLocked?: boolean;
+  usbLockedAt?: string | null;
+  guardLastBeat?: string | null;
   platform?: string;
   cpu_model?: string;
   cpu_count?: number;
@@ -256,4 +259,37 @@ export interface ScheduleItem {
 export interface AuthUser {
   username: string;
   role: 'admin' | 'incharge' | 'viewer';
+}
+
+export interface UsbAllowItem {
+  serial: string;
+  owner?: string;
+  note?: string;
+}
+
+export interface UsbPolicyItem {
+  key: string;
+  mode: 'off' | 'alert' | 'alert_lock';
+  message: string;
+  allowlist: UsbAllowItem[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface UsbEventItem {
+  _id?: string;
+  id?: string;
+  nodeId: string;
+  labId?: string;
+  user?: string;
+  serial?: string;
+  vendor?: string;
+  model?: string;
+  label?: string;
+  action: 'none' | 'alert' | 'lock';
+  allowed: boolean;
+  insertedAt: string;
+  removedAt?: string | null;
+  unlockedAt?: string | null;
+  unlockedBy?: string | null;
 }

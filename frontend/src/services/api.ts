@@ -266,4 +266,29 @@ export const reportsModuleApi = {
     api.delete(`/reports/presets/${id}`).then(res => res.data)
 };
 
+export const usbApi = {
+  getPolicy: (): Promise<any> =>
+    api.get('/usb/policy').then(res => res.data),
+  updatePolicy: (data: { mode?: string; message?: string }): Promise<any> =>
+    api.put('/usb/policy', data).then(res => res.data),
+  addAllowlist: (data: { serial: string; owner?: string; note?: string }): Promise<any> =>
+    api.post('/usb/allowlist', data).then(res => res.data),
+  removeAllowlist: (serial: string): Promise<any> =>
+    api.delete(`/usb/allowlist/${encodeURIComponent(serial)}`).then(res => res.data),
+  unlockWorkstation: (nodeId: string): Promise<{ ok: boolean; delivered: boolean }> =>
+    api.post(`/usb/workstations/${encodeURIComponent(nodeId)}/unlock`).then(res => res.data),
+  lockWorkstation: (nodeId: string): Promise<{ ok: boolean }> =>
+    api.post(`/usb/workstations/${encodeURIComponent(nodeId)}/lock`).then(res => res.data),
+  getEvents: (params?: { labId?: string; nodeId?: string; from?: string; to?: string; limit?: number }): Promise<any[]> => {
+    const qs = new URLSearchParams();
+    if (params?.labId) qs.append('labId', params.labId);
+    if (params?.nodeId) qs.append('nodeId', params.nodeId);
+    if (params?.from) qs.append('from', params.from);
+    if (params?.to) qs.append('to', params.to);
+    if (params?.limit) qs.append('limit', String(params.limit));
+    const str = qs.toString();
+    return api.get(`/usb/events${str ? `?${str}` : ''}`).then(res => res.data);
+  }
+};
+
 export default api;
